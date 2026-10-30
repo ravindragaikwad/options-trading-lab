@@ -1,0 +1,1030 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<style>
+.otl-nav{background:#0f1b26;color:#e8eef4;font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;border-bottom:1px solid #1c2c3b}
+.otl-in{max-width:1140px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 20px;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.otl-nav a{color:inherit;text-decoration:none;padding:8px 0;border-bottom:2px solid transparent}
+.otl-nav a:hover{border-bottom-color:#7f94a8}
+.otl-nav a[aria-current="page"]{border-bottom-color:#f0a43a}
+.otl-nav a:focus-visible{outline:2px solid #f0a43a;outline-offset:2px}
+.otl-brand{font-weight:700;margin-right:auto}
+</style><nav class="otl-nav" aria-label="Site"><div class="otl-in"><a class="otl-brand" href="../">Options Trading Lab</a><a href="../learning/">Learning</a><a href="../ledger/" aria-current="page">Ledger</a></div></nav>
+
+<title>Options P&amp;L Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a trader's ledger — summary strip, month calendar beside the day's fills, equity curve, then the month-by-month book. */
+:root {
+  --bg: #eef1f5; --surface: #ffffff; --sunk: #f6f8fb; --ink: #151c28; --muted: #5a6577; --line: #d9dfe8;
+  --accent: #2747c9; --gain: #0d8358; --loss: #c2343a; --zero: #8a94a5;
+  --f-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-body: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1219; --surface: #151c26; --sunk: #111821; --ink: #e5eaf1; --muted: #93a0b3; --line: #253041;
+  --accent: #8aa2ff; --gain: #3fcb8e; --loss: #ff6f6f; --zero: #6f7a8c; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1219; --surface: #151c26; --sunk: #111821; --ink: #e5eaf1; --muted: #93a0b3; --line: #253041;
+  --accent: #8aa2ff; --gain: #3fcb8e; --loss: #ff6f6f; --zero: #6f7a8c; color-scheme: dark }
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1140px; margin: 0 auto; padding-inline: 20px; padding-block: 22px 48px; display: grid; gap: 18px; }
+@media (max-width: 520px) { .wrap { padding-inline: 16px; } }
+.num { font-family: var(--f-num); font-variant-numeric: tabular-nums; }
+.gain { color: var(--gain); } .loss { color: var(--loss); } .flat { color: var(--muted); }
+h1, h2 { font-family: var(--f-display); margin: 0; text-wrap: balance; }
+h1 { font-size: 1.6rem; font-weight: 750; font-stretch: 85%; letter-spacing: -0.01em; }
+h2 { font-size: 0.78rem; font-weight: 650; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible + label, .cell:focus-visible, tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.top .sub { color: var(--muted); font-size: 0.88rem; margin-top: 2px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 7px 12px; font-size: 0.86rem; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface); border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 0.88rem; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.danger { background: var(--loss); border-color: var(--loss); }
+.status { font-size: 0.88rem; padding: 10px 14px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); }
+.status.err { border-color: var(--loss); color: var(--loss); }
+
+/* kpis */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.kpi { background: var(--surface); padding: 14px 16px; display: grid; gap: 4px; min-width: 0; }
+.kpi .lab { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.kpi .val { font-family: var(--f-num); font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; }
+.kpi .note { font-size: 0.8rem; color: var(--muted); }
+@media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* panels */
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; min-width: 0; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.split { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; }
+@media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); } }
+
+/* calendar */
+.monthnav { display: flex; align-items: center; gap: 6px; }
+.monthnav .mname { font-family: var(--f-display); font-weight: 700; font-size: 1.05rem; font-stretch: 90%; color: var(--ink); background: var(--sunk); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; height: 32px; cursor: pointer; }
+.iconbtn { border: 1px solid var(--line); background: var(--sunk); border-radius: 7px; width: 32px; height: 32px; font-size: 1rem; line-height: 1; }
+.iconbtn:disabled { opacity: 0.35; cursor: default; }
+.pill { font-family: var(--f-num); font-weight: 600; font-size: 0.92rem; padding: 4px 10px; border-radius: 999px; background: var(--sunk); border: 1px solid var(--line); }
+.cal { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(0, 0.9fr); gap: 4px; }
+.cal .dow { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 0 4px 2px; }
+.cell { border: 1px solid var(--line); border-radius: 7px; min-height: 66px; padding: 6px 7px; display: flex; flex-direction: column; justify-content: space-between; background: var(--sunk); text-align: left; min-width: 0; }
+.cell.blank { background: transparent; border-style: dashed; opacity: 0.45; }
+.cell .d { font-size: 0.74rem; color: var(--muted); display: flex; justify-content: space-between; gap: 4px; }
+.cell .p { font-family: var(--f-num); font-weight: 600; font-size: 0.86rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cell .t { font-size: 0.68rem; color: var(--muted); }
+.cell.has { cursor: pointer; }
+.cell.sel { outline: 2px solid var(--accent); outline-offset: -1px; }
+.cell.wk { background: transparent; border-color: transparent; border-left: 1px solid var(--line); border-radius: 0; }
+@media (max-width: 520px) { .cell { min-height: 54px; padding: 4px 5px; } .cell .p { font-size: 0.74rem; } .cell .t { display: none; } }
+
+/* day detail */
+.daytitle { font-family: var(--f-display); font-weight: 700; font-size: 1.1rem; font-stretch: 90%; }
+.fills { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+.fills td, .fills th { padding: 7px 4px; border-bottom: 1px solid var(--line); text-align: left; }
+.fills th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.fills td.r, .fills th.r { text-align: right; }
+.fills tfoot td { border-bottom: 0; font-weight: 700; }
+.muted { color: var(--muted); }
+.small { font-size: 0.82rem; }
+
+/* chart */
+.chartbox { position: relative; }
+.chartbox svg { display: block; width: 100%; height: auto; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--surface); font-size: 0.78rem; padding: 6px 8px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, -110%); }
+.tip .num { font-weight: 600; }
+
+/* month table */
+.scroll { overflow-x: auto; }
+.book { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 720px; }
+.book th, .book td { padding: 9px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.book th:first-child, .book td:first-child { text-align: left; }
+.book th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+.book tbody tr { cursor: pointer; }
+.book tbody tr:hover { background: var(--sunk); }
+.book tbody tr.sel { background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.book tfoot td { font-weight: 700; border-bottom: 0; }
+.bar { display: inline-block; height: 8px; border-radius: 2px; vertical-align: middle; margin-left: 6px; }
+
+/* review */
+.reviewbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px; padding-top: 8px; border-top: 2px solid var(--ink); }
+.rtitle { font-family: var(--f-display); font-weight: 750; font-size: 1.3rem; font-stretch: 85%; }
+.vs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.vs > div { background: var(--sunk); padding: 12px 14px; display: grid; gap: 2px; min-width: 0; }
+.vs .lab, .stat .lab { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.vs .big { font-size: 1.35rem; font-weight: 600; }
+.vs .note, .stat .note { font-size: 0.8rem; color: var(--muted); }
+.book.rules, .book.edge { min-width: 560px; }
+.book.rules tbody tr, .book.edge tbody tr { cursor: default; }
+.chip { display: inline-block; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--sunk); border: 1px solid var(--line); color: var(--muted); }
+.chip.bad { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 45%, var(--line)); background: color-mix(in srgb, var(--loss) 10%, var(--surface)); }
+.chip.good { color: var(--gain); border-color: color-mix(in srgb, var(--gain) 45%, var(--line)); background: color-mix(in srgb, var(--gain) 10%, var(--surface)); }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 18px; }
+.stat { display: grid; gap: 3px; min-width: 0; padding-left: 10px; border-left: 2px solid var(--line); }
+.stat .val { font-size: 1.15rem; font-weight: 600; }
+@media (max-width: 760px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .vs { grid-template-columns: minmax(0, 1fr); } }
+.dims { flex-wrap: wrap; margin-bottom: 10px; }
+.barcol { width: 34%; }
+.dbar { position: relative; display: block; height: 10px; background: linear-gradient(var(--line), var(--line)) center / 1px 100% no-repeat; }
+.dbar > span { position: absolute; top: 1px; bottom: 1px; border-radius: 2px; opacity: .7; }
+.flag { font-size: 0.62rem; font-weight: 700; color: var(--loss); margin-left: 3px; letter-spacing: 0.02em; }
+.breaks { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.breaks ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.84rem; display: grid; gap: 6px; }
+@media (max-width: 520px) { .flag.lim { display: none; } }
+.okline { color: var(--gain); font-size: 0.86rem; margin: 12px 0 0; }
+.goalbar { display: block; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; margin-top: 2px; }
+.goalbar > span { display: block; height: 100%; background: var(--gain); }
+.settings summary { cursor: pointer; display: grid; gap: 4px; list-style: none; }
+.settings summary::-webkit-details-marker { display: none; }
+.settings summary h2::after { content: " ▸"; }
+.settings[open] summary h2::after { content: " ▾"; }
+.cfg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; margin-top: 14px; }
+.cfg label { display: grid; gap: 4px; font-size: 0.82rem; color: var(--muted); min-width: 0; }
+.cfg input[type=number] { font: inherit; font-family: var(--f-num); color: var(--ink); background: var(--sunk); border: 1px solid var(--line); border-radius: 7px; padding: 7px 9px; width: 100%; }
+.cfg .chk { display: flex; align-items: center; gap: 8px; grid-column: span 2; color: var(--ink); }
+.cfgbtns { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+@media (max-width: 760px) { .cfg { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+a { color: var(--accent); }
+
+/* brief + events */
+.brief { border-top: 3px solid var(--accent); }
+.brief h3 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 6px; font-weight: 650; }
+.brief .lede { font-size: 1rem; margin: 0 0 12px; max-width: 75ch; }
+.bgrid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 18px; }
+.bgrid > div { min-width: 0; display: grid; gap: 6px; align-content: start; }
+@media (max-width: 760px) { .bgrid { grid-template-columns: minmax(0, 1fr); } }
+.blist { margin: 0 0 8px; padding-left: 18px; display: grid; gap: 6px; font-size: 0.88rem; }
+.tk { font-family: var(--f-num); font-weight: 600; font-size: 0.8rem; padding: 1px 6px; border-radius: 5px; background: var(--sunk); border: 1px solid var(--line); }
+.plan { margin-top: 12px; padding: 12px 14px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.plan .blist { margin: 0; }
+.stamp { margin: 12px 0 0; }
+.stamp a { word-break: break-word; }
+.chip.mid { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.evt { display: flex; flex-wrap: wrap; gap: 2px; }
+.evt > span { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.03em; padding: 0 4px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent); white-space: nowrap; }
+.evt > span.big { background: var(--accent); color: var(--surface); }
+@media (max-width: 520px) { .evt > span:not(.big) { display: none; } }
+
+/* empty + notes */
+.empty { text-align: center; padding: 40px 16px; display: grid; gap: 10px; justify-items: center; }
+.empty p { max-width: 52ch; color: var(--muted); margin: 0; }
+.notes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; font-size: 0.86rem; color: var(--muted); }
+.notes h2 { margin-bottom: 6px; }
+.notes p, .notes ol { margin: 0; }
+.notes ol { padding-left: 18px; }
+@media (max-width: 760px) { .notes { grid-template-columns: minmax(0, 1fr); } }
+.dataline { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; font-size: 0.84rem; color: var(--muted); }
+.drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 3px dashed var(--accent); display: grid; place-items: center; font-family: var(--f-display); font-size: 1.4rem; font-weight: 700; color: var(--accent); z-index: 5; }
+@media (prefers-reduced-motion: no-preference) { .cell, .book tbody tr { transition: background-color .15s; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Options P&amp;L Ledger</h1>
+      <div class="sub" id="sub">Realized profit and loss from your Robinhood activity, by day and by month.</div>
+    </div>
+    <div class="actions">
+      <div class="seg" role="group" aria-label="What to count">
+        <button id="m-opt" aria-pressed="true">Options</button>
+        <button id="m-all" aria-pressed="false">Options + stocks</button>
+      </div>
+      <input type="file" id="file" accept=".csv,text/csv" hidden>
+      <button class="btn" id="importBtn">Import Robinhood CSV</button>
+    </div>
+  </header>
+
+  <div id="status" class="status" role="status" hidden></div>
+
+  <section class="panel brief" id="brief" aria-label="Market brief" hidden></section>
+
+  <div id="main" hidden>
+    <div style="display:grid;gap:18px">
+      <section class="kpis" id="kpis" aria-label="Summary"></section>
+
+      <div class="split">
+        <section class="panel" aria-label="Daily P&L calendar">
+          <div class="panel-head">
+            <div class="monthnav">
+              <button class="iconbtn" id="prev" aria-label="Previous month">‹</button>
+              <select class="mname" id="mname" aria-label="Month"></select>
+              <button class="iconbtn" id="next" aria-label="Next month">›</button>
+            </div>
+            <span class="pill" id="mtotal"></span>
+          </div>
+          <div class="cal" id="cal"></div>
+        </section>
+        <section class="panel" aria-label="Day detail" id="day"></section>
+      </div>
+
+      <div class="reviewbar">
+        <div><h2>Review</h2><div class="rtitle" id="scopeName"></div></div>
+        <div class="seg" role="group" aria-label="Review period" id="scopes">
+          <button data-s="month" aria-pressed="true">Calendar month</button>
+          <button data-s="90" aria-pressed="false">Last 90 days</button>
+          <button data-s="all" aria-pressed="false">All time</button>
+        </div>
+      </div>
+
+      <section class="panel" aria-label="Rules check">
+        <div class="panel-head"><h2>Rules check</h2><a href="#rules-settings" class="small" id="editRules">Edit rules</a></div>
+        <div id="rulesum"></div>
+        <div class="scroll"><table class="book rules" id="rules"></table></div>
+      </section>
+
+      <section class="panel" aria-label="Risk">
+        <div class="panel-head"><h2>Risk</h2><span class="muted small" id="riskScope"></span></div>
+        <div class="stats" id="risk"></div>
+      </section>
+
+      <section class="panel" aria-label="Where you make and lose money">
+        <div class="panel-head"><h2>Where you make and lose money</h2></div>
+        <div class="seg dims" role="group" aria-label="Group trades by" id="dims">
+          <button data-dim="ticker">Ticker</button><button data-dim="cp">Call / put</button><button data-dim="prem">Premium</button><button data-dim="qty">Contracts</button><button data-dim="dte">Expiry</button><button data-dim="wd">Weekday</button><button data-dim="exit">Exit style</button><button data-dim="hold">Holding</button><button data-dim="events">Market events</button>
+        </div>
+        <div class="scroll"><table class="book edge" id="edge"></table></div>
+      </section>
+
+      <section class="panel" aria-label="Cumulative P&L">
+        <div class="panel-head">
+          <h2>Accumulated P&amp;L</h2>
+          <div class="seg" role="group" aria-label="Chart range">
+            <button id="r-all" aria-pressed="true">All</button>
+            <button id="r-90" aria-pressed="false">90 days</button>
+            <button id="r-m" aria-pressed="false">This month</button>
+          </div>
+        </div>
+        <div class="chartbox" id="chartbox"><svg id="chart" role="img" aria-label="Accumulated realized P&L by trading day"></svg><div class="tip" id="tip" hidden></div></div>
+      </section>
+
+      <section class="panel" aria-label="Month by month">
+        <div class="panel-head"><h2>Month by month</h2><span class="muted small">Click a month to open it in the calendar</span></div>
+        <div class="scroll"><table class="book" id="book"></table></div>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel empty" id="empty">
+    <h2 id="emptyTitle">Loading your trades…</h2>
+    <p id="emptyText">Your saved transactions will appear here.</p>
+  </section>
+
+  <details class="panel settings" id="rules-settings">
+    <summary><h2>Rules &amp; limits</h2><span class="muted small">Your trading rules, daily loss limit and goals. Change them and every check above updates.</span></summary>
+    <form id="cfgForm" class="cfg"></form>
+  </details>
+
+  <section class="panel notes">
+    <div>
+      <h2>Adding new trades</h2>
+      <ol>
+        <li>On robinhood.com go to Account → Reports and statements → Reports, and create an account activity report (CSV) for the dates you want.</li>
+        <li>Click <b>Import Robinhood CSV</b> here, or drop the file anywhere on this page.</li>
+      </ol>
+      <p style="margin-top:6px">Overlapping date ranges are fine. Rows already saved are skipped, so you can export the last week every Friday.</p>
+    </div>
+    <div>
+      <h2>How P&amp;L is counted</h2>
+      <p>Each closing sale is matched to your earliest open contracts of the same option (first in, first out). The profit lands on the day you closed, and Robinhood's fees are included. Expired options close at $0. A partial exit counts on its own day. If a position was opened before your earliest import, its sale is skipped.</p>
+    </div>
+  </section>
+
+  <div class="dataline" id="dataline"></div>
+</div>
+<div class="drop" id="drop" hidden>Drop your Robinhood CSV to import</div>
+<script>
+// ---- core: CSV parsing + FIFO realized P&L (shared by page and node test) ----
+const KEEP = new Set(["BTO","STC","STO","BTC","OEXP","OASGN","OEXCS","Buy","Sell"]);
+const OPT_RE = /^(\S+) (\d{1,2}\/\d{1,2}\/\d{4}) (Call|Put) \$([\d,.]+)$/;
+
+function parseCSV(text) {
+  const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ",") { row.push(f); f = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(f); rows.push(row); row = []; f = "";
+    } else f += ch;
+  }
+  if (f !== "" || row.length) { row.push(f); rows.push(row); }
+  return rows;
+}
+function money(s) {
+  s = (s || "").replace(/[$,\s]/g, "");
+  if (!s) return null;
+  const neg = s.startsWith("(");
+  const v = parseFloat(s.replace(/[()]/g, ""));
+  return isNaN(v) ? null : (neg ? -v : v);
+}
+function isoDate(s) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((s || "").trim());
+  return m ? `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}` : null;
+}
+// Robinhood activity CSV -> compact rows [date, instrument, desc, code, qty, price, amount], oldest first
+function rowsFromRobinhood(text) {
+  const all = parseCSV(text.replace(/^﻿/, ""));
+  const h = all.findIndex(r => r[0] && r[0].trim() === "Activity Date");
+  if (h < 0) throw new Error("This doesn't look like a Robinhood account activity CSV (no \"Activity Date\" column).");
+  const hd = all[h].map(x => x.trim());
+  const ix = n => hd.indexOf(n);
+  const [iD, iI, iDe, iC, iQ, iP, iA] = ["Activity Date","Instrument","Description","Trans Code","Quantity","Price","Amount"].map(ix);
+  if ([iD, iC, iQ, iA, iDe].some(i => i < 0)) throw new Error("The CSV is missing a column this page needs (Activity Date, Description, Trans Code, Quantity or Amount).");
+  const out = [];
+  for (const r of all.slice(h + 1)) {
+    const d = isoDate(r[iD]); const code = (r[iC] || "").trim();
+    if (!d || !KEEP.has(code)) continue;
+    const qty = parseFloat((r[iQ] || "").replace(/[^0-9.]/g, ""));
+    if (!qty) continue;
+    const desc = (r[iDe] || "").split("\n")[0].trim();
+    out.push([d, (r[iI] || "").trim(), desc, code, qty, money(r[iP]), money(r[iA])]);
+  }
+  out.reverse(); // file is newest-first
+  out.sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0); // stable: keeps in-day order
+  return out;
+}
+function rowKey(r) { return r.slice(0, 7).join("|"); }
+// Merge new rows into existing (both oldest-first) without duplicating rows already saved.
+function mergeRows(oldRows, newRows) {
+  const count = new Map();
+  for (const r of oldRows) { const k = rowKey(r); count.set(k, (count.get(k) || 0) + 1); }
+  const seen = new Map(); const added = [];
+  for (const r of newRows) {
+    const k = rowKey(r); const n = (seen.get(k) || 0) + 1; seen.set(k, n);
+    if (n > (count.get(k) || 0)) added.push(r);
+  }
+  if (!added.length) return { rows: oldRows, added: 0 };
+  // if the new file covers everything already saved for this month, keep its ordering
+  let covers = true;
+  for (const [k, c] of count) if ((seen.get(k) || 0) < c) { covers = false; break; }
+  const rows = covers ? newRows.slice() : oldRows.concat(added).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0);
+  return { rows, added: added.length };
+}
+
+function optInfo(desc) {
+  const m = OPT_RE.exec(desc.replace(/^Option Expiration for /, "").trim());
+  return m ? { key: m[0], sym: m[1], exp: m[2], cp: m[3], strike: m[4] } : null;
+}
+// rows oldest-first -> { days: Map(date -> {pnl, closes:[...]}), trips:[...], unmatched }
+function computePnL(rows, includeStocks) {
+  const pos = new Map(); const days = new Map(); const trips = []; let unmatched = 0;
+  const day = d => { if (!days.has(d)) days.set(d, { pnl: 0, closes: [] }); return days.get(d); };
+  for (let i = 0; i < rows.length; i++) {
+    const [d, inst, desc, code, qty, , amt] = rows[i];
+    const oi = optInfo(desc);
+    const isOpt = !!oi;
+    if (!isOpt && !includeStocks) continue;
+    if (!isOpt && !(code === "Buy" || code === "Sell")) continue;
+    const key = isOpt ? oi.key : "STK " + inst;
+    const label = isOpt ? `${oi.sym} ${oi.exp.replace(/\/\d{4}$/, "")} ${oi.strike.replace(/\.00$/, "")}${oi.cp[0]}` : `${inst} shares`;
+    if (!pos.has(key)) pos.set(key, { lots: [], trip: null });
+    const p = pos.get(key);
+    const opening = code === "BTO" || code === "STO" || code === "Buy";
+    const cpu = amt == null ? 0 : amt / qty; // signed cash per unit, fees included
+    if (opening) {
+      if (!p.lots.length) p.trip = { key, label, sym: isOpt ? oi.sym : inst, isOpt, open: d, pnl: 0, cost: 0, buys: 0, sells: 0, qty: 0, seq: i, long: code !== "STO", cp: isOpt ? oi.cp : "", exp: isOpt ? isoDate(oi.exp) : "" };
+      p.lots.push({ q: (code === "STO" ? -1 : 1) * qty, c: cpu });
+      p.trip.buys++; p.trip.qty += qty; p.trip.cost += Math.max(0, -(amt || 0));
+      continue;
+    }
+    // closing: STC/Sell close longs, BTC closes shorts, OEXP/OASGN/OEXCS close whatever is open at $0
+    const want = (code === "STC" || code === "Sell") ? 1 : code === "BTC" ? -1 : 0;
+    let left = qty, pnl = 0, matched = 0;
+    while (left > 1e-9 && p.lots.length && (want === 0 || Math.sign(p.lots[0].q) === want)) {
+      const lot = p.lots[0]; const m = Math.min(left, Math.abs(lot.q));
+      pnl += m * (lot.c + cpu); matched += m;
+      lot.q -= Math.sign(lot.q) * m; left -= m;
+      if (Math.abs(lot.q) < 1e-9) p.lots.shift();
+    }
+    if (left > 1e-9) unmatched++;
+    if (!matched) continue;
+    const ev = { key, label, code, qty: matched, pnl, isOpt };
+    const dd = day(d); dd.pnl += pnl; dd.closes.push(ev);
+    p.trip.pnl += pnl; p.trip.sells++;
+    if (!p.lots.length) { trips.push({ ...p.trip, close: d, closeSeq: i }); p.trip = null; }
+  }
+  const open = [...pos.values()].filter(p => p.lots.length).map(p => p.trip);
+  return { days, trips, unmatched, open };
+}
+// ---- rules, limits, edge and risk analysis ----
+const CFG_DEFAULT = { maxTrades: 3, maxLosses: 2, premMin: 0.45, premMax: 0.60, maxQty: 2, noAdd: true, scale: true, dayLoss: 150, weekGoal: 200, monthGoal: 800 };
+const RULES = [
+  { id: "count", name: c => `Max ${c.maxTrades} trades a day`, why: "trade beyond the daily limit" },
+  { id: "stop",  name: c => `Stop after ${c.maxLosses} losses`, why: "opened after the daily loss count was hit" },
+  { id: "prem",  name: c => `Premium $${c.premMin.toFixed(2)}–${c.premMax.toFixed(2)}`, why: "premium outside your range" },
+  { id: "size",  name: c => `Max ${c.maxQty} contract${c.maxQty === 1 ? "" : "s"}`, why: "too many contracts" },
+  { id: "add",   name: () => "No adding to a trade", why: "added to the position" },
+  { id: "scale", name: () => "Sell in pieces", why: "sold everything in one exit" },
+];
+const premOf = t => t.isOpt && t.long && t.qty ? t.cost / t.qty / 100 : null;
+
+// flags every round trip with the rules it broke; marks days that went past the loss limit
+function evalRules(res, c) {
+  const flags = new Map(); // trip -> [rule ids]
+  const add = (t, id) => { if (!flags.has(t)) flags.set(t, []); if (!flags.get(t).includes(id)) flags.get(t).push(id); };
+  const opts = res.trips.filter(t => t.isOpt);
+  const byOpen = new Map();
+  for (const t of opts) { if (!byOpen.has(t.open)) byOpen.set(t.open, []); byOpen.get(t.open).push(t); }
+  for (const [d, ts] of byOpen) {
+    ts.sort((a, b) => a.seq - b.seq);
+    if (c.maxTrades > 0) ts.slice(c.maxTrades).forEach(t => add(t, "count"));
+    if (c.maxLosses > 0) {
+      const losers = opts.filter(t => t.close === d && t.pnl < 0).sort((a, b) => a.closeSeq - b.closeSeq);
+      if (losers.length >= c.maxLosses) { const cut = losers[c.maxLosses - 1].closeSeq; ts.filter(t => t.seq > cut).forEach(t => add(t, "stop")); }
+    }
+  }
+  for (const t of opts) {
+    if (!t.long) continue;
+    const p = premOf(t);
+    if (p != null && (p < c.premMin - 0.005 || p > c.premMax + 0.005)) add(t, "prem");
+    if (c.maxQty > 0 && t.qty > c.maxQty) add(t, "size");
+    if (c.noAdd && t.buys > 1) add(t, "add");
+    if (c.scale && t.qty >= 2 && t.sells === 1) add(t, "scale");
+  }
+  const limitDays = new Map();
+  if (c.dayLoss > 0) for (const [d, v] of res.days) if (v.pnl < -c.dayLoss) limitDays.set(d, v.pnl);
+  return { flags, limitDays };
+}
+
+// ---------- scope ----------
+function scopeBounds() {
+  if (S.scope === "month") return [S.selMonth + "-01", S.selMonth + "-31"];
+  if (S.scope === "90") { const last = [...S.res.days.keys()].sort().pop(); const x = dObj(last); x.setUTCDate(x.getUTCDate() - 90); return [x.toISOString().slice(0, 10), "9999"]; }
+  return ["0000", "9999"];
+}
+function scopeLabel() { return S.scope === "month" ? mLabel(S.selMonth) : S.scope === "90" ? "Last 90 days" : "All time"; }
+const inScope = (d, [a, b]) => d >= a && d <= b;
+
+// ---------- rules ----------
+function renderRules() {
+  const c = S.cfg, ev = S.ev, sb = scopeBounds();
+  const trips = S.res.trips.filter(t => t.isOpt && inScope(t.close, sb));
+  const sum = ts => ts.reduce((a, t) => a + t.pnl, 0);
+  const wr = ts => ts.length ? Math.round(100 * ts.filter(t => t.pnl > 0).length / ts.length) + "%" : "–";
+  const broken = trips.filter(t => ev.flags.has(t)), clean = trips.filter(t => !ev.flags.has(t));
+  $("rulesum").innerHTML = `
+    <div class="vs"><div><span class="lab">Followed every rule</span><span class="big num ${cls(sum(clean))}">${usd(sum(clean))}</span><span class="note">${clean.length} trades · ${wr(clean)} win rate</span></div>
+    <div><span class="lab">Broke at least one rule</span><span class="big num ${cls(sum(broken))}">${usd(sum(broken))}</span><span class="note">${broken.length} trades · ${wr(broken)} win rate</span></div></div>`;
+  let rows = RULES.map(r => {
+    const b = trips.filter(t => (ev.flags.get(t) || []).includes(r.id));
+    const ok = trips.filter(t => !(ev.flags.get(t) || []).includes(r.id));
+    const off = (r.id === "add" && !c.noAdd) || (r.id === "scale" && !c.scale) || (r.id === "count" && !c.maxTrades) || (r.id === "stop" && !c.maxLosses) || (r.id === "size" && !c.maxQty);
+    const state = off ? `<span class="chip">Off</span>` : b.length ? `<span class="chip bad">Broken ${b.length}×</span>` : `<span class="chip good">Kept</span>`;
+    return `<tr><td>${r.name(c)}</td><td>${state}</td><td class="num">${b.length}</td><td class="num ${cls(sum(b))}">${b.length ? usd(sum(b)) : "–"}</td><td class="num">${b.length ? wr(b) : "–"}</td><td class="num ${cls(sum(ok))}">${usd(sum(ok))}</td></tr>`;
+  }).join("");
+  const ld = [...ev.limitDays.entries()].filter(([d]) => inScope(d, sb));
+  const beyond = ld.reduce((a, [, p]) => a + (p + c.dayLoss), 0);
+  rows += `<tr><td>Daily loss limit ${usd(-c.dayLoss).replace("−", "−")}</td><td>${!c.dayLoss ? `<span class="chip">Off</span>` : ld.length ? `<span class="chip bad">Hit ${ld.length}×</span>` : `<span class="chip good">Kept</span>`}</td><td class="num">${ld.length} day${ld.length === 1 ? "" : "s"}</td><td class="num ${cls(beyond)}">${ld.length ? usd(beyond) : "–"}</td><td class="num">–</td><td class="num muted small">lost past the limit</td></tr>`;
+  $("rules").innerHTML = `<thead><tr><th>Rule</th><th>Status</th><th>Trades breaking it</th><th>P&amp;L on those</th><th>Win rate</th><th>P&amp;L when kept</th></tr></thead><tbody>${rows}</tbody>`;
+}
+
+// ---------- risk ----------
+function renderRisk() {
+  const c = S.cfg, sb = scopeBounds();
+  const trips = S.res.trips.filter(t => inScope(t.close, sb)).sort((a, b) => a.closeSeq - b.closeSeq);
+  const days = [...S.res.days.entries()].filter(([d]) => inScope(d, sb)).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  const W = trips.filter(t => t.pnl > 0), L = trips.filter(t => t.pnl <= 0);
+  const gw = W.reduce((a, t) => a + t.pnl, 0), gl = L.reduce((a, t) => a + t.pnl, 0), net = gw + gl;
+  const aw = W.length ? gw / W.length : 0, al = L.length ? gl / L.length : 0;
+  let cum = 0, peak = 0, dd = 0, ddFrom = null, ddTo = null, pk = null;
+  for (const [d, v] of days) { cum += v.pnl; if (cum > peak) { peak = cum; pk = d; } if (peak - cum > dd) { dd = peak - cum; ddFrom = pk; ddTo = d; } }
+  let ls = 0, run = 0; for (const t of trips) { run = t.pnl <= 0 ? run + 1 : 0; ls = Math.max(ls, run); }
+  let rd = 0, rr = 0; for (const [, v] of days) { rr = v.pnl < 0 ? rr + 1 : 0; rd = Math.max(rd, rr); }
+  const lim = days.filter(([, v]) => c.dayLoss > 0 && v.pnl < -c.dayLoss).length;
+  const tile = (lab, val, note, k = "") => `<div class="stat"><span class="lab">${lab}</span><span class="val num ${k}">${val}</span><span class="note">${note}</span></div>`;
+  $("riskScope").textContent = scopeLabel();
+  $("risk").innerHTML = !trips.length ? `<p class="muted">No closed trades in ${scopeLabel().toLowerCase()}.</p>` : [
+    tile("Avg per trade", usd(net / trips.length, 2), `${trips.length} round trips`, cls(net)),
+    tile("Avg win / avg loss", `${usd(aw)} / ${usd(al)}`, al ? `wins are ${(aw / -al).toFixed(2)}× losses` : "no losses"),
+    tile("Total won ÷ total lost", gl ? (gw / -gl).toFixed(2) : "–", "above 1.5 is healthy", gl && gw / -gl >= 1 ? "gain" : "loss"),
+    tile("Win rate", Math.round(100 * W.length / trips.length) + "%", `${W.length} won · ${L.length} lost`),
+    tile("Biggest drop from a peak", dd ? usd(-dd) : "$0", dd ? `${nice(ddFrom || days[0][0])} → ${nice(ddTo)}` : "no drawdown", dd ? "loss" : ""),
+    tile("Longest losing streak", `${ls} trade${ls === 1 ? "" : "s"}`, `${rd} red day${rd === 1 ? "" : "s"} in a row at most`),
+    tile("Worst day", days.length ? usd(Math.min(...days.map(([, v]) => v.pnl))) : "–", `best day ${days.length ? usd(Math.max(...days.map(([, v]) => v.pnl))) : "–"}`),
+    tile("Days past loss limit", String(lim), c.dayLoss ? `limit ${usd(-c.dayLoss)} a day` : "no limit set", lim ? "loss" : "gain"),
+  ].join("");
+}
+
+// ---------- edge ----------
+const DIMS = {
+  ticker:  { name: "Ticker", f: t => t.sym },
+  cp:      { name: "Call / put", f: t => t.isOpt ? t.cp + "s" : "Stocks" },
+  prem:    { name: "Premium", f: t => { const p = premOf(t); if (p == null) return t.isOpt ? "Short options" : "Stocks"; return p < 0.30 ? "Under $0.30" : p < 0.45 ? "$0.30–0.45" : p <= 0.605 ? "$0.45–0.60" : p < 1 ? "$0.60–1.00" : "Over $1.00"; }, order: ["Under $0.30","$0.30–0.45","$0.45–0.60","$0.60–1.00","Over $1.00","Short options","Stocks"] },
+  qty:     { name: "Contracts", f: t => !t.isOpt ? "Stocks" : t.qty <= 1 ? "1 contract" : t.qty <= 2 ? "2 contracts" : t.qty <= 5 ? "3–5 contracts" : "6+ contracts", order: ["1 contract","2 contracts","3–5 contracts","6+ contracts","Stocks"] },
+  dte:     { name: "Expiry", f: t => { if (!t.isOpt) return "Stocks"; const n = Math.round((dObj(t.exp) - dObj(t.open)) / 864e5); return n <= 0 ? "Same-day (0DTE)" : n === 1 ? "Next day (1DTE)" : n <= 7 ? "2–7 days" : "Over a week"; }, order: ["Same-day (0DTE)","Next day (1DTE)","2–7 days","Over a week","Stocks"] },
+  wd:      { name: "Weekday", f: t => DOW[dObj(t.open).getUTCDay()], order: ["Mon","Tue","Wed","Thu","Fri"] },
+  exit:    { name: "Exit style", f: t => t.qty < 2 ? "1 contract (no scaling possible)" : t.sells > 1 ? "Sold in pieces" : "Sold all at once", order: ["Sold in pieces","Sold all at once","1 contract (no scaling possible)"] },
+  hold:    { name: "Holding", f: t => t.open === t.close ? "Closed same day" : "Held overnight", order: ["Closed same day","Held overnight"] },
+};
+function renderEdge() {
+  const sb = scopeBounds(), dim = DIMS[S.dim] || DIMS.ticker;
+  for (const b of $("dims").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.dim === S.dim));
+  const trips = S.res.trips.filter(t => inScope(t.close, sb));
+  const g = new Map();
+  for (const t of trips) { const k = dim.f(t); const x = g.get(k) || { k, n: 0, w: 0, net: 0 }; x.n++; x.net += t.pnl; if (t.pnl > 0) x.w++; g.set(k, x); }
+  let rows = [...g.values()];
+  if (dim.order) rows.sort((a, b) => dim.order.indexOf(a.k) - dim.order.indexOf(b.k)); else rows.sort((a, b) => b.net - a.net);
+  const max = Math.max(1, ...rows.map(r => Math.abs(r.net)));
+  $("edge").innerHTML = !rows.length ? `<tbody><tr><td class="muted">No closed trades in ${scopeLabel().toLowerCase()}.</td></tr></tbody>` :
+    `<thead><tr><th>${dim.name}</th><th>Trades</th><th>Win rate</th><th>Avg per trade</th><th>Net P&amp;L</th><th class="barcol"></th></tr></thead><tbody>` +
+    rows.map(r => {
+      const w = Math.round(50 * Math.abs(r.net) / max);
+      const bar = `<span class="dbar"><span style="${r.net >= 0 ? "left:50%" : `right:50%`};width:${w}%;background:${r.net >= 0 ? "var(--gain)" : "var(--loss)"}"></span></span>`;
+      return `<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num">${Math.round(100 * r.w / r.n)}%</td><td class="num ${cls(r.net / r.n)}">${usd(r.net / r.n, 2)}</td><td class="num ${cls(r.net)}">${usd(r.net)}</td><td class="barcol">${bar}</td></tr>`;
+    }).join("") + `</tbody>`;
+}
+
+// ---------- settings ----------
+const CFG_FIELDS = [
+  ["maxTrades", "Max trades a day", "int"], ["maxLosses", "Stop after this many losses", "int"],
+  ["premMin", "Lowest premium ($/contract)", "num"], ["premMax", "Highest premium ($/contract)", "num"],
+  ["maxQty", "Max contracts per trade", "int"], ["dayLoss", "Daily loss limit ($)", "int"],
+  ["weekGoal", "Weekly goal ($)", "int"], ["monthGoal", "Monthly goal ($)", "int"],
+  ["noAdd", "Flag adding to a trade", "bool"], ["scale", "Flag selling all at once (2+ contracts)", "bool"],
+];
+function renderSettingsForm() {
+  $("cfgForm").innerHTML = CFG_FIELDS.map(([k, lab, t]) => t === "bool"
+    ? `<label class="chk" for="cfg-${k}"><input type="checkbox" id="cfg-${k}" ${S.cfg[k] ? "checked" : ""}> ${lab}</label>`
+    : `<label for="cfg-${k}"><span>${lab}</span><input id="cfg-${k}" type="number" inputmode="decimal" min="0" step="${t === "num" ? "0.01" : "1"}" value="${S.cfg[k]}"></label>`).join("") +
+    `<div class="cfgbtns"><button type="submit" class="btn">Save rules</button><button type="button" class="btn ghost" id="cfgReset">Reset to defaults</button><span id="cfgMsg" class="muted small" role="status"></span></div>`;
+  $("cfgReset").onclick = () => { S.cfg = { ...CFG_DEFAULT }; renderSettingsForm(); saveCfg(); };
+}
+async function saveCfg() {
+  store.set("cfg", S.cfg);
+  if (S.db) { try { await S.db.doc("config/settings").set({ ...S.cfg }); } catch (e) { $("cfgMsg").textContent = "Saved in this browser only."; } }
+  $("cfgMsg").textContent = "Saved."; recompute();
+}
+function bindAnalysis() {
+$("editRules").onclick = e => { e.preventDefault(); $("rules-settings").open = true; $("rules-settings").scrollIntoView({ behavior: "smooth", block: "start" }); };
+$("cfgForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const n = { ...S.cfg };
+  for (const [k, , t] of CFG_FIELDS) {
+    const el = $("cfg-" + k);
+    if (t === "bool") n[k] = el.checked;
+    else { const v = parseFloat(el.value); n[k] = isNaN(v) || v < 0 ? CFG_DEFAULT[k] : (t === "int" ? Math.round(v) : v); }
+  }
+  if (n.premMin > n.premMax) [n.premMin, n.premMax] = [n.premMax, n.premMin];
+  S.cfg = n; renderSettingsForm(); saveCfg();
+});
+for (const b of $("scopes").querySelectorAll("button")) b.onclick = () => { S.scope = b.dataset.s; store.set("scope", S.scope); render(); };
+for (const b of $("dims").querySelectorAll("button")) b.onclick = () => { S.dim = b.dataset.dim; store.set("dim", S.dim); renderEdge(); };
+}
+// ---- market events + morning brief ----
+// Scheduled US releases for 2026 (ET). Big three: CPI, Jobs (nonfarm payrolls), FOMC rate decision.
+const HIST_EVENTS = (() => {
+  const m = {};
+  const add = (tag, ds) => ds.split(" ").forEach(d => { (m["2026-" + d] = m["2026-" + d] || []).push(tag); });
+  add("CPI",  "01-15 02-12 03-12 04-10 05-13 06-10 07-14 08-12 09-11 10-14 11-10 12-10");
+  add("Jobs", "01-09 02-11 03-06 04-03 05-08 06-05 07-02 08-07 09-04 10-02 11-06 12-04");
+  add("PPI",  "01-30 02-27 03-18 04-14 05-13 06-11 07-15 08-13 09-10 10-15 11-13 12-15");
+  add("FOMC", "01-28 03-18 04-29 06-17 07-29 09-16 10-28 12-09");
+  add("Fed minutes", "10-07 11-18");
+  add("PCE", "10-29 11-25 12-23");
+  return m;
+})();
+const BIG = new Set(["CPI", "Jobs", "FOMC"]);
+const etToday = () => { try { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date()); } catch (e) { return new Date().toISOString().slice(0, 10); } };
+function dayTags(d) {
+  const s = new Set(HIST_EVENTS[d] || []);
+  const b = S.briefs.get(d); if (b && Array.isArray(b.tags)) b.tags.forEach(t => s.add(String(t)));
+  return [...s];
+}
+function tagsHtml(d, cap = 2) {
+  const t = dayTags(d); if (!t.length) return "";
+  const sorted = t.sort((a, b) => (BIG.has(b) ? 1 : 0) - (BIG.has(a) ? 1 : 0));
+  return `<span class="evt">${sorted.slice(0, cap).map(x => `<span class="${BIG.has(x) ? "big" : ""}">${esc(x)}</span>`).join("")}${t.length > cap ? `<span>+${t.length - cap}</span>` : ""}</span>`;
+}
+DIMS.events = { name: "Market events", f: t => { const tg = dayTags(t.open); return tg.some(x => BIG.has(x)) ? "CPI / jobs / Fed day" : tg.length ? "Other scheduled event" : "Normal day"; }, order: ["CPI / jobs / Fed day", "Other scheduled event", "Normal day"] };
+
+function pickBrief() {
+  const ds = [...S.briefs.keys()].sort();
+  if (!ds.length) return null;
+  if (S.briefDate && S.briefs.has(S.briefDate)) return S.briefDate;
+  const today = etToday();
+  if (S.briefs.has(today)) return today;
+  const fut = ds.filter(d => d > today);
+  return fut.length ? fut[0] : ds[ds.length - 1];
+}
+const linkOk = u => /^https:\/\//i.test(String(u || ""));
+function renderBrief() {
+  const el = $("brief");
+  const d = pickBrief();
+  el.hidden = !d;
+  if (!d) return;
+  const b = S.briefs.get(d) || {}, today = etToday();
+  const rel = d === today ? "Today" : d > today ? "Next session" : "Earlier brief";
+  const opts = [...S.briefs.keys()].sort().reverse().map(k => `<option value="${k}"${k === d ? " selected" : ""}>${nice(k)}</option>`).join("");
+  const imp = i => `<span class="chip ${i === "high" ? "bad" : i === "medium" ? "mid" : ""}">${esc(i || "low")}</span>`;
+  const list = (a) => Array.isArray(a) ? a : [];
+  const events = list(b.events).map(e => `<tr><td class="num">${esc(e.time || "")}</td><td><b>${esc(e.name || "")}</b>${e.note ? `<div class="muted small">${esc(e.note)}</div>` : ""}</td><td>${imp(e.impact)}</td></tr>`).join("");
+  const earn = list(b.earnings).map(e => `<li><span class="tk">${esc(e.ticker || "")}</span> <span class="muted">${esc(e.when || "")}</span>${e.note ? ` – ${esc(e.note)}` : ""}</li>`).join("");
+  const cats = list(b.catalysts).map(c => `<li><span class="tk">${esc(c.ticker || "")}</span> ${esc(c.headline || "")}${c.note ? `<div class="muted small">${esc(c.note)}</div>` : ""}</li>`).join("");
+  const plan = list(b.plan).map(p => `<li>${esc(p)}</li>`).join("");
+  const src = list(b.sources).filter(s => linkOk(s.url)).map(s => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a>`).join(" · ");
+  el.innerHTML = `
+    <div class="panel-head">
+      <div><h2>Market brief · ${rel}</h2><div class="daytitle">${nice(d)}${b.closed ? " · market closed" : ""}</div></div>
+      <label class="small muted" for="briefSel">Brief for <select id="briefSel" class="mname">${opts}</select></label>
+    </div>
+    ${b.headline ? `<p class="lede">${esc(b.headline)}</p>` : ""}
+    <div class="bgrid">
+      <div><h3>Scheduled events (ET)</h3>${events ? `<table class="fills"><tbody>${events}</tbody></table>` : `<p class="muted small">No major US data scheduled.</p>`}</div>
+      <div><h3>Earnings</h3>${earn ? `<ul class="blist">${earn}</ul>` : `<p class="muted small">None from your watchlist.</p>`}
+           <h3>News on your tickers</h3>${cats ? `<ul class="blist">${cats}</ul>` : `<p class="muted small">Nothing notable.</p>`}</div>
+    </div>
+    ${plan ? `<div class="plan"><h3>How it affects 0DTE trading</h3><ul class="blist">${plan}</ul></div>` : ""}
+    <p class="muted small stamp">${b.generated ? `Written by Claude ${esc(String(b.generated).replace("T", " ").slice(0, 16))} ET` : ""}${src ? ` · Sources: ${src}` : ""}</p>`;
+  $("briefSel").onchange = e => { S.briefDate = e.target.value; renderBrief(); };
+}
+// ---- app ----
+const $ = id => document.getElementById(id);
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const MONL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const LS = "pnl-ledger";
+const store = { get(k, d) { try { const v = localStorage.getItem(LS + ":" + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(LS + ":" + k, JSON.stringify(v)); } catch (e) {} } };
+
+const S = { months: new Map(), loaded: false, db: null, stocks: store.get("stocks", false), range: store.get("range", "all"),
+            selMonth: null, selDay: null, res: null, rows: [], ev: null, briefs: new Map(), briefDate: null,
+            cfg: { ...CFG_DEFAULT, ...store.get("cfg", {}) }, scope: store.get("scope", "month"), dim: store.get("dim", "ticker") };
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const cls = v => Math.abs(v) < 0.005 ? "flat" : v > 0 ? "gain" : "loss";
+function usd(v, dec = 0) {
+  const a = Math.abs(v); const s = a.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  if (Math.abs(v) < (dec ? 0.005 : 0.5)) return "$" + (dec ? "0.00" : "0");
+  return (v > 0 ? "+$" : "−$") + s;
+}
+function usdShort(v) {
+  const a = Math.abs(v); if (a < 0.5) return "$0";
+  const s = a >= 10000 ? (a / 1000).toFixed(1) + "k" : Math.round(a).toLocaleString("en-US");
+  return (v > 0 ? "+$" : "−$") + s;
+}
+const dObj = d => new Date(d + "T12:00:00Z");
+const nice = d => { const x = dObj(d); return `${DOW[x.getUTCDay()]}, ${MON[x.getUTCMonth()]} ${x.getUTCDate()}`; };
+const mLabel = m => `${MONL[+m.slice(5) - 1]} ${m.slice(0, 4)}`;
+const addMonth = (m, n) => { let y = +m.slice(0, 4), mo = +m.slice(5) - 1 + n; y += Math.floor(mo / 12); mo = ((mo % 12) + 12) % 12; return `${y}-${String(mo + 1).padStart(2, "0")}`; };
+
+function say(msg, err) { const el = $("status"); el.hidden = !msg; el.textContent = msg || ""; el.classList.toggle("err", !!err); }
+
+// ---------- data ----------
+function allRows() {
+  return [...S.months.keys()].sort().flatMap(k => S.months.get(k) || []);
+}
+function recompute() {
+  S.rows = allRows();
+  S.res = S.rows.length ? computePnL(S.rows, S.stocks) : null;
+  S.ev = S.res ? evalRules(S.res, S.cfg) : null;
+  render();
+}
+async function saveMonths(changed) {
+  if (S.db) {
+    for (const m of changed) await S.db.collection("txns").doc(m).set({ month: m, rows: S.months.get(m), updated: new Date().toISOString() });
+  } else {
+    const o = {}; for (const [k, v] of S.months) o[k] = v; store.set("months", o);
+  }
+}
+async function importText(text, name) {
+  let rows;
+  try { rows = rowsFromRobinhood(text); } catch (e) { say(e.message, true); return; }
+  if (!rows.length) { say(`${name} has no option or stock trades in it.`, true); return; }
+  const byM = new Map();
+  for (const r of rows) { const k = r[0].slice(0, 7); if (!byM.has(k)) byM.set(k, []); byM.get(k).push(r); }
+  let added = 0; const changed = [];
+  for (const [m, nr] of byM) {
+    const res = mergeRows(S.months.get(m) || [], nr);
+    if (res.added) { S.months.set(m, res.rows); changed.push(m); added += res.added; }
+  }
+  const span = `${nice(rows[0][0])} – ${nice(rows[rows.length - 1][0])}`;
+  if (!added) { say(`Nothing new in ${name} (${span}). Every row was already saved.`); return; }
+  say(`Saving ${added} new transactions…`);
+  try { await saveMonths(changed); }
+  catch (e) { say(`Couldn't save: ${e && e.message ? e.message : e}. Only the artifact's owner or editors can import.`, true); return; }
+  S.selMonth = rows[rows.length - 1][0].slice(0, 7); S.selDay = null;
+  say(`Added ${added} new transactions from ${name} (${span}). ${rows.length - added} were already saved.`);
+  recompute();
+}
+async function clearAll() {
+  const keys = [...S.months.keys()];
+  try {
+    if (S.db) { for (const k of keys) await S.db.collection("txns").doc(k).delete(); }
+    else store.set("months", {});
+    S.months.clear(); S.selMonth = null; S.selDay = null; say("All saved transactions were removed."); recompute();
+  } catch (e) { say("Couldn't remove the data: " + (e && e.message ? e.message : e), true); }
+}
+
+// ---------- aggregates ----------
+function monthStats(m) {
+  const r = S.res; let net = 0, green = 0, red = 0, best = null, worst = null, days = 0;
+  for (const [d, v] of r.days) {
+    if (d.slice(0, 7) !== m) continue;
+    days++; net += v.pnl;
+    if (v.pnl > 0.005) green++; else if (v.pnl < -0.005) red++;
+    if (!best || v.pnl > best.pnl) best = { d, pnl: v.pnl };
+    if (!worst || v.pnl < worst.pnl) worst = { d, pnl: v.pnl };
+  }
+  const trips = r.trips.filter(t => t.close.slice(0, 7) === m);
+  const wins = trips.filter(t => t.pnl > 0).length;
+  return { net, green, red, best, worst, days, trips: trips.length, wins };
+}
+// months the calendar can show: January of the first year with data up to this month (or the last data month if later)
+function navBounds() {
+  const [first, last] = monthRange();
+  const now = new Date(), cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  return [first.slice(0, 4) + "-01", last > cur ? last : cur];
+}
+function monthRange() {
+  const ks = [...S.months.keys()].filter(k => (S.months.get(k) || []).length).sort();
+  return ks.length ? [ks[0], ks[ks.length - 1]] : [null, null];
+}
+
+// ---------- render ----------
+function render() {
+  renderBrief();
+  const has = !!(S.res && S.rows.length);
+  $("main").hidden = !has; $("empty").hidden = has;
+  $("m-opt").setAttribute("aria-pressed", String(!S.stocks)); $("m-all").setAttribute("aria-pressed", String(S.stocks));
+  for (const r of ["all", "90", "m"]) $("r-" + r).setAttribute("aria-pressed", String(S.range === r));
+  for (const b of $("scopes").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.s === S.scope));
+  if (!has) {
+    $("emptyTitle").textContent = S.loaded ? "No trades saved yet" : "Loading your trades…";
+    $("emptyText").textContent = S.loaded ? "Import a Robinhood account activity CSV to see your daily and monthly P&L. Everything you import stays saved here." : "Your saved transactions will appear here.";
+    renderDataline(); return;
+  }
+  const [, last] = monthRange(), [lo, hi] = navBounds();
+  if (!S.selMonth || S.selMonth < lo || S.selMonth > hi) S.selMonth = last;
+  $("scopeName").textContent = scopeLabel();
+  renderKpis(); renderCal(); renderDay(); renderRules(); renderRisk(); renderEdge(); renderChart(); renderBook(); renderDataline();
+}
+
+function renderKpis() {
+  const m = S.selMonth, st = monthStats(m), yr = m.slice(0, 4);
+  let ytd = 0; for (const [d, v] of S.res.days) if (d.slice(0, 4) === yr) ytd += v.pnl;
+  const lastDay = [...S.res.days.keys()].sort().pop();
+  const ld = S.res.days.get(lastDay);
+  const wr = st.trips ? Math.round(100 * st.wins / st.trips) : null;
+  $("kpis").innerHTML = `
+    <div class="kpi"><span class="lab">${MON[+m.slice(5) - 1]} ${yr} net</span><span class="val ${cls(st.net)}">${usd(st.net)}</span><span class="note">${S.cfg.monthGoal ? `${Math.max(0, Math.round(100 * st.net / S.cfg.monthGoal))}% of ${usd(S.cfg.monthGoal).replace("+", "")} goal · ` : ""}${st.green} green · ${st.red} red</span>${S.cfg.monthGoal ? `<span class="goalbar"><span style="width:${Math.max(0, Math.min(100, 100 * st.net / S.cfg.monthGoal))}%"></span></span>` : ""}</div>
+    <div class="kpi"><span class="lab">${yr} year to date</span><span class="val ${cls(ytd)}">${usd(ytd)}</span><span class="note">realized so far in ${yr}</span></div>
+    <div class="kpi"><span class="lab">Last trading day</span><span class="val ${cls(ld.pnl)}">${usd(ld.pnl)}</span><span class="note">${nice(lastDay)}</span></div>
+    <div class="kpi"><span class="lab">${MON[+m.slice(5) - 1]} win rate</span><span class="val">${wr == null ? "–" : wr + "%"}</span><span class="note">${st.wins} of ${st.trips} round trips</span></div>`;
+}
+
+function renderCal() {
+  const m = S.selMonth, [lo, hi] = navBounds();
+  const opts = []; for (let k = hi; k >= lo; k = addMonth(k, -1)) opts.push(`<option value="${k}"${k === m ? " selected" : ""}>${mLabel(k)}</option>`);
+  $("mname").innerHTML = opts.join("");
+  $("prev").disabled = m <= lo; $("next").disabled = m >= hi;
+  const st = monthStats(m);
+  $("mtotal").className = "pill " + cls(st.net); $("mtotal").textContent = usd(st.net);
+  const y = +m.slice(0, 4), mo = +m.slice(5) - 1, n = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+  let maxAbs = 1; for (const [d, v] of S.res.days) if (d.slice(0, 7) === m) maxAbs = Math.max(maxAbs, Math.abs(v.pnl));
+  let html = ["Mon","Tue","Wed","Thu","Fri","Week"].map(x => `<div class="dow">${x}</div>`).join("");
+  let week = [], wsum = 0, wHas = false;
+  const flush = () => {
+    while (week.length && week.length < 5) week.push(`<div class="cell blank" aria-hidden="true"></div>`);
+    if (!week.length) return;
+    html += week.join("") + `<div class="cell wk"><span class="d">Week</span><span class="p ${wHas ? cls(wsum) : "flat"}">${wHas ? usdShort(wsum) : ""}</span><span class="t">${wHas && S.cfg.weekGoal ? (wsum >= S.cfg.weekGoal ? `<span class="gain">✓ goal</span>` : `${usdShort(S.cfg.weekGoal - wsum).replace("+", "")} short`) : ""}</span></div>`;
+    week = []; wsum = 0; wHas = false;
+  };
+  for (let day = 1; day <= n; day++) {
+    const dt = new Date(Date.UTC(y, mo, day)), wd = dt.getUTCDay();
+    if (wd === 0 || wd === 6) continue;
+    if (!week.length) for (let k = 1; k < wd; k++) week.push(`<div class="cell blank" aria-hidden="true"></div>`);
+    const d = `${m}-${String(day).padStart(2, "0")}`, v = S.res.days.get(d);
+    if (v) {
+      const k = Math.min(1, Math.abs(v.pnl) / maxAbs), pct = Math.round(10 + 34 * k);
+      const col = v.pnl > 0.005 ? "var(--gain)" : v.pnl < -0.005 ? "var(--loss)" : "var(--zero)";
+      const nTr = new Set(v.closes.map(c => c.key)).size;
+      const nb = dayBreaks(d).length, lim = S.ev.limitDays.has(d);
+      const badge = (lim ? `<span class="flag lim" title="Past your daily loss limit">LIMIT</span>` : "") + (nb ? `<span class="flag" title="${nb} trade${nb === 1 ? "" : "s"} broke a rule">⚑${nb}</span>` : "");
+      week.push(`<button class="cell has${S.selDay === d ? " sel" : ""}" data-d="${d}" style="background:color-mix(in srgb, ${col} ${pct}%, var(--surface));border-color:color-mix(in srgb, ${col} 40%, var(--line))" aria-label="${nice(d)}: ${usd(v.pnl, 2)}"><span class="d"><span>${day}</span><span>${badge}</span></span>${tagsHtml(d)}<span class="p ${cls(v.pnl)}">${usdShort(v.pnl)}</span><span class="t">${nTr} contract${nTr === 1 ? "" : "s"}</span></button>`);
+      wsum += v.pnl; wHas = true;
+    } else week.push(`<div class="cell"><span class="d"><span>${day}</span></span>${tagsHtml(d)}<span class="p"></span><span class="t"></span></div>`);
+    if (wd === 5) flush();
+  }
+  flush();
+  $("cal").innerHTML = html;
+}
+
+// trips opened on day d that broke at least one rule
+function dayBreaks(d) { return S.res.trips.filter(t => t.open === d && S.ev.flags.has(t)); }
+function dayRulesHtml(d, v) {
+  const items = dayBreaks(d).sort((a, b) => a.seq - b.seq).map(t => {
+    const why = S.ev.flags.get(t).map(id => RULES.find(r => r.id === id).why).join("; ");
+    return `<li><b>${esc(t.label)}</b> <span class="num ${cls(t.pnl)}">${usd(t.pnl, 2)}</span><br><span class="muted">${why}</span></li>`;
+  });
+  if (S.ev.limitDays.has(d)) items.unshift(`<li><b>Daily loss limit passed</b><br><span class="muted">Lost ${usd(-v.pnl, 2).replace("+", "")} against a ${usd(S.cfg.dayLoss).replace("+", "")} limit</span></li>`);
+  if (!items.length) return S.res.trips.some(t => t.open === d && t.isOpt) ? `<p class="okline">✓ Every trade opened this day followed your rules.</p>` : "";
+  return `<div class="breaks"><h2>Rules broken</h2><ul>${items.join("")}</ul></div>`;
+}
+function renderDay() {
+  const m = S.selMonth;
+  let d = S.selDay;
+  if (!d || d.slice(0, 7) !== m || !S.res.days.has(d)) d = [...S.res.days.keys()].filter(x => x.slice(0, 7) === m).sort().pop();
+  const el = $("day");
+  if (!d) { el.innerHTML = `<h2>Day detail</h2><p class="muted">No closed trades in ${mLabel(m)}.</p>`; return; }
+  S.selDay = d;
+  for (const c of $("cal").querySelectorAll(".cell.has")) c.classList.toggle("sel", c.dataset.d === d);
+  const v = S.res.days.get(d);
+  const g = new Map();
+  for (const c of v.closes) { const x = g.get(c.key) || { label: c.label, qty: 0, pnl: 0, n: 0 }; x.qty += c.qty; x.pnl += c.pnl; x.n++; g.set(c.key, x); }
+  let run = 0; for (const [dd, vv] of S.res.days) if (dd.slice(0, 7) === m && dd <= d) run += vv.pnl;
+  const rows = [...g.values()].sort((a, b) => a.pnl - b.pnl).map(x =>
+    `<tr><td>${esc(x.label)}</td><td class="r num">${+x.qty.toFixed(4)}</td><td class="r num ${cls(x.pnl)}">${usd(x.pnl, 2)}</td></tr>`).join("");
+  el.innerHTML = `
+    <div class="panel-head"><div><h2>Closed on</h2><div class="daytitle">${nice(d)}</div>${dayTags(d).length ? `<div class="small muted">Events: ${dayTags(d).map(esc).join(", ")}</div>` : ""}</div><span class="pill ${cls(v.pnl)}">${usd(v.pnl, 2)}</span></div>
+    <table class="fills"><thead><tr><th>Contract</th><th class="r">Qty closed</th><th class="r">P&amp;L</th></tr></thead>
+    <tbody>${rows}</tbody>
+    <tfoot><tr><td class="muted">${mLabel(m).split(" ")[0]} total through this day</td><td></td><td class="r num ${cls(run)}">${usd(run, 2)}</td></tr></tfoot></table>
+    ${dayRulesHtml(d, v)}
+    <p class="muted small" style="margin:10px 0 0">Click any coloured day in the calendar to see its trades. ⚑ marks trades that broke one of your rules.</p>`;
+}
+
+function niceStep(span, n) {
+  const raw = span / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+  return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p;
+}
+function renderChart() {
+  const box = $("chartbox"), svg = $("chart");
+  const W = Math.max(320, box.clientWidth || 800), H = W < 560 ? 240 : 300;
+  const all = [...S.res.days.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1);
+  let pts = [], cum = 0;
+  for (const [d, v] of all) { cum += v.pnl; pts.push({ d, cum, day: v.pnl }); }
+  const lastD = pts[pts.length - 1].d;
+  let from = null;
+  if (S.range === "90") { const x = dObj(lastD); x.setUTCDate(x.getUTCDate() - 90); from = x.toISOString().slice(0, 10); }
+  if (S.range === "m") from = S.selMonth + "-01";
+  let base = 0;
+  if (from) { const before = pts.filter(p => p.d < from); base = before.length ? before[before.length - 1].cum : 0; pts = pts.filter(p => p.d >= from); }
+  if (S.range === "m") pts = pts.filter(p => p.d.slice(0, 7) === S.selMonth);
+  // show the change over the window, starting from 0
+  pts = pts.map(p => ({ ...p, v: p.cum - base }));
+  const pad = { l: 64, r: 70, t: 16, b: 30 };
+  if (!pts.length) { svg.setAttribute("viewBox", `0 0 ${W} 60`); svg.innerHTML = `<text x="${W / 2}" y="34" text-anchor="middle" fill="var(--muted)" font-size="13">No closed trades in this range.</text>`; return; }
+  const vals = [0, ...pts.map(p => p.v)];
+  if (S.range === "m" && S.cfg.monthGoal) vals.push(S.cfg.monthGoal);
+  let lo = Math.min(...vals), hi = Math.max(...vals); if (hi - lo < 50) { hi += 25; lo -= 25; }
+  const step = niceStep(hi - lo, 4); lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b, n = pts.length;
+  const X = i => pad.l + (n === 1 ? iw / 2 : (i + 1) * iw / n);
+  const X0 = pad.l;
+  const Y = v => pad.t + (hi - v) / (hi - lo) * ih;
+  let g = "";
+  for (let v = lo; v <= hi + 1e-6; v += step) {
+    g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1" ${Math.abs(v) < 1e-6 ? "" : 'stroke-dasharray="2 4"'}/>`;
+    g += `<text x="${pad.l - 8}" y="${Y(v) + 4}" text-anchor="end" fill="var(--muted)" font-size="11" font-family="var(--f-num)">${usdShort(v).replace("+", "")}</text>`;
+  }
+  g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--zero)" stroke-width="1.2"/>`;
+  // month ticks
+  let lastM = null, lastX = -99;
+  pts.forEach((p, i) => {
+    const mm = p.d.slice(0, 7);
+    if (mm !== lastM) {
+      lastM = mm; const x = X(i) - (iw / n) / 2;
+      if (x - lastX > 34) { g += `<line x1="${x}" x2="${x}" y1="${pad.t}" y2="${H - pad.b}" stroke="var(--line)" stroke-width="1"/><text x="${x + 4}" y="${H - pad.b + 18}" fill="var(--muted)" font-size="11">${MON[+mm.slice(5) - 1]}</text>`; lastX = x; }
+    }
+  });
+  // daily bars (small, at the foot of the zero line) to show each day's contribution
+  const maxDay = Math.max(1, ...pts.map(p => Math.abs(p.day)));
+  const bw = Math.max(1, Math.min(10, iw / n * 0.6)), bh = ih * 0.22;
+  pts.forEach((p, i) => {
+    const h = Math.abs(p.day) / maxDay * bh, y = p.day >= 0 ? Y(0) - h : Y(0);
+    g += `<rect x="${X(i) - bw / 2}" y="${y}" width="${bw}" height="${Math.max(0.5, h)}" fill="${p.day >= 0 ? "var(--gain)" : "var(--loss)"}" opacity="0.35"/>`;
+  });
+  const line = `M${X0},${Y(0)} ` + pts.map((p, i) => `L${X(i)},${Y(p.v)}`).join(" ");
+  const area = line + ` L${X(n - 1)},${Y(0)} Z`;
+  const endV = pts[n - 1].v;
+  if (S.range === "m" && S.cfg.monthGoal && S.cfg.monthGoal <= hi) g += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(S.cfg.monthGoal)}" y2="${Y(S.cfg.monthGoal)}" stroke="var(--gain)" stroke-width="1.2" stroke-dasharray="6 4"/><text x="${W - pad.r + 6}" y="${Y(S.cfg.monthGoal) + 4}" font-size="11" fill="var(--gain)">goal</text>`;
+  if (S.range === "m" && S.cfg.monthGoal && S.cfg.monthGoal > hi) g += `<text x="${pad.l + 6}" y="${pad.t + 12}" font-size="11" fill="var(--muted)">Monthly goal ${usd(S.cfg.monthGoal).replace("+", "")} is above this chart</text>`;
+  g += `<path d="${area}" fill="var(--accent)" opacity="0.10"/>`;
+  g += `<path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+  g += `<circle cx="${X(n - 1)}" cy="${Y(endV)}" r="4" fill="var(--accent)"/>`;
+  g += `<text x="${X(n - 1) + 8}" y="${Y(endV) + 4}" font-size="12" font-weight="600" font-family="var(--f-num)" fill="${endV >= 0 ? "var(--gain)" : "var(--loss)"}">${usdShort(endV)}</text>`;
+  g += `<line id="hx" x1="0" x2="0" y1="${pad.t}" y2="${H - pad.b}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/><circle id="hc" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="2" visibility="hidden"/>`;
+  g += `<rect x="${pad.l}" y="${pad.t}" width="${iw}" height="${ih}" fill="transparent" id="hit"/>`;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = g;
+  const tip = $("tip"), hx = svg.querySelector("#hx"), hc = svg.querySelector("#hc");
+  const move = ev => {
+    const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) * W / r.width;
+    let i = Math.round((sx - pad.l) / (iw / n) - 1); i = Math.max(0, Math.min(n - 1, i));
+    const p = pts[i], x = X(i), y = Y(p.v);
+    hx.setAttribute("x1", x); hx.setAttribute("x2", x); hx.setAttribute("visibility", "visible");
+    hc.setAttribute("cx", x); hc.setAttribute("cy", y); hc.setAttribute("visibility", "visible");
+    tip.hidden = false; tip.style.left = (x * r.width / W) + "px"; tip.style.top = (y * r.height / H) + "px";
+    tip.innerHTML = `${nice(p.d)} · day <span class="num">${usd(p.day)}</span><br>Total <span class="num">${usd(p.v)}</span>`;
+  };
+  const hit = svg.querySelector("#hit");
+  hit.addEventListener("pointermove", move);
+  hit.addEventListener("pointerleave", () => { tip.hidden = true; hx.setAttribute("visibility", "hidden"); hc.setAttribute("visibility", "hidden"); });
+}
+
+function renderBook() {
+  const [first, last] = monthRange();
+  const ms = []; for (let m = first; m <= last; m = addMonth(m, 1)) ms.push(m);
+  let run = 0; const rows = ms.map(m => { const st = monthStats(m); run += st.net; return { m, st, run }; });
+  const maxAbs = Math.max(1, ...rows.map(r => Math.abs(r.st.net)));
+  let tot = { net: 0, days: 0, g: 0, r: 0, t: 0, w: 0 };
+  const body = rows.slice().reverse().map(({ m, st, run }) => {
+    tot.net += st.net; tot.days += st.days; tot.g += st.green; tot.r += st.red; tot.t += st.trips; tot.w += st.wins;
+    const w = Math.round(46 * Math.abs(st.net) / maxAbs);
+    return `<tr data-m="${m}" tabindex="0" class="${m === S.selMonth ? "sel" : ""}">
+      <td>${mLabel(m)}</td>
+      <td class="num ${cls(st.net)}">${usd(st.net)}<span class="bar" style="width:${w}px;background:${st.net >= 0 ? "var(--gain)" : "var(--loss)"};opacity:.55"></span></td>
+      <td class="num ${cls(run)}">${usd(run)}</td>
+      <td class="num">${st.days}</td>
+      <td class="num"><span class="gain">${st.green}</span> / <span class="loss">${st.red}</span></td>
+      <td class="num">${st.trips}</td>
+      <td class="num">${st.trips ? Math.round(100 * st.wins / st.trips) + "%" : "–"}</td>
+      <td class="num ${st.best ? cls(st.best.pnl) : ""}">${st.best ? usd(st.best.pnl) : "–"}</td>
+      <td class="num ${st.worst ? cls(st.worst.pnl) : ""}">${st.worst ? usd(st.worst.pnl) : "–"}</td></tr>`;
+  }).join("");
+  $("book").innerHTML = `<thead><tr><th>Month</th><th>Net P&amp;L</th><th>Running total</th><th>Trading days</th><th>Green / red</th><th>Round trips</th><th>Win rate</th><th>Best day</th><th>Worst day</th></tr></thead>
+    <tbody>${body}</tbody>
+    <tfoot><tr><td>All months</td><td class="num ${cls(tot.net)}">${usd(tot.net)}</td><td></td><td class="num">${tot.days}</td><td class="num"><span class="gain">${tot.g}</span> / <span class="loss">${tot.r}</span></td><td class="num">${tot.t}</td><td class="num">${tot.t ? Math.round(100 * tot.w / tot.t) + "%" : "–"}</td><td></td><td></td></tr></tfoot>`;
+}
+
+function renderDataline() {
+  const el = $("dataline"), n = S.rows.length;
+  if (!n) { el.innerHTML = S.loaded ? `<span>${S.db ? "Imports are saved with this page." : "Imports are saved in this browser only."}</span>` : ""; return; }
+  const where = S.db ? "Saved with this page, so it's there on any device you open it from." : "Saved in this browser only.";
+  const opened = S.res ? S.res.open.length : 0;
+  el.innerHTML = `<span>${n.toLocaleString()} transactions from ${nice(S.rows[0][0])} to ${nice(S.rows[n - 1][0])}. ${where}${S.res && S.res.unmatched ? ` ${S.res.unmatched} closing sale${S.res.unmatched === 1 ? " was" : "s were"} skipped because the position opened before your first import.` : ""}${opened ? ` ${opened} position${opened === 1 ? " is" : "s are"} still open.` : ""}</span>
+    <span id="clr"><button class="btn ghost" id="clrBtn" style="padding:5px 10px;font-size:.8rem">Remove all saved data</button></span>`;
+  $("clrBtn").onclick = () => {
+    $("clr").innerHTML = `<span>Delete all ${n.toLocaleString()} saved transactions? </span><button class="btn danger" id="clrYes" style="padding:5px 10px;font-size:.8rem">Delete</button> <button class="btn ghost" id="clrNo" style="padding:5px 10px;font-size:.8rem">Cancel</button>`;
+    $("clrYes").onclick = clearAll; $("clrNo").onclick = renderDataline;
+  };
+}
+
+// ---------- events ----------
+$("m-opt").onclick = () => { S.stocks = false; store.set("stocks", false); recompute(); };
+$("m-all").onclick = () => { S.stocks = true; store.set("stocks", true); recompute(); };
+for (const r of ["all", "90", "m"]) $("r-" + r).onclick = () => { S.range = r; store.set("range", r); render(); };
+const goMonth = m => { const [lo, hi] = navBounds(); if (m < lo || m > hi) return; S.selMonth = m; S.selDay = null; render(); };
+$("prev").onclick = () => goMonth(addMonth(S.selMonth, -1));
+$("next").onclick = () => goMonth(addMonth(S.selMonth, 1));
+$("mname").onchange = e => goMonth(e.target.value);
+addEventListener("keydown", e => {
+  if (!S.res || e.target.closest("input, select, textarea")) return;
+  if (e.key === "ArrowLeft") goMonth(addMonth(S.selMonth, -1));
+  if (e.key === "ArrowRight") goMonth(addMonth(S.selMonth, 1));
+});
+$("cal").addEventListener("click", e => { const c = e.target.closest(".cell.has"); if (c) { S.selDay = c.dataset.d; renderDay(); } });
+const pickMonth = e => { const tr = e.target.closest("tr[data-m]"); if (tr) { S.selMonth = tr.dataset.m; S.selDay = null; render(); $("mname").scrollIntoView({ block: "nearest", behavior: "smooth" }); } };
+$("book").addEventListener("click", pickMonth);
+$("book").addEventListener("keydown", e => { if (e.key === "Enter") pickMonth(e); });
+$("importBtn").onclick = () => $("file").click();
+$("file").onchange = async e => { const f = e.target.files[0]; if (f) await importText(await f.text(), f.name); e.target.value = ""; };
+let dragN = 0;
+addEventListener("dragenter", e => { if ([...(e.dataTransfer?.types || [])].includes("Files")) { dragN++; $("drop").hidden = false; } });
+addEventListener("dragleave", () => { if (--dragN <= 0) { dragN = 0; $("drop").hidden = true; } });
+addEventListener("dragover", e => e.preventDefault());
+addEventListener("drop", async e => { e.preventDefault(); dragN = 0; $("drop").hidden = true; const f = e.dataTransfer.files[0]; if (f) await importText(await f.text(), f.name); });
+let rT; addEventListener("resize", () => { clearTimeout(rT); rT = setTimeout(() => { if (S.res) renderChart(); }, 150); });
+
+// ---------- boot ----------
+function loadLocal() {
+  const o = store.get("months", {}); S.months = new Map(Object.entries(o || {}));
+  S.loaded = true; recompute();
+}
+bindAnalysis(); renderSettingsForm();
+render();
+(async () => {
+  let db = null;
+  try { db = window.claude && window.claude.use ? await window.claude.use("db") : null; } catch (e) { db = null; }
+  if (!db) { loadLocal(); return; }
+  S.db = db;
+  db.doc("config/settings").onSnapshot(snap => {
+    if (snap.exists) { S.cfg = { ...CFG_DEFAULT, ...snap.data() }; store.set("cfg", S.cfg); renderSettingsForm(); recompute(); }
+  }, () => {});
+  db.collection("briefs").onSnapshot(snap => {
+    const m = new Map(); for (const d of snap.docs) { const b = d.data(); if (b) m.set(b.date || d.id, b); }
+    S.briefs = m; S.ev ? render() : renderBrief();
+  }, () => {});
+  db.collection("txns").onSnapshot(snap => {
+    const m = new Map();
+    for (const d of snap.docs) { const b = d.data(); if (b && Array.isArray(b.rows)) m.set(b.month || d.id, b.rows); }
+    S.months = m; S.loaded = true; recompute();
+  }, err => { say("Couldn't load saved trades (" + err.code + "). Imports will only last until you close this page.", true); S.db = null; loadLocal(); });
+})();
+</script>
+
+</body></html>

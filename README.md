@@ -1,11 +1,16 @@
 # Options Trading Lab
 
-Static pages for learning and practicing options day trading. No build step; every page is a single self-contained HTML file.
+Static pages for learning and practicing options day trading. No build step; every page is a single self-contained HTML file with a shared top menu.
 
-| Path | What it is |
-|---|---|
-| `/` | Landing page linking to each tool |
-| `/playbook/` | Price Action Playbook: interactive chart lessons, position size calculator, quiz |
+| Menu item | Path | What it is |
+|---|---|---|
+| Home | `/` | Landing page |
+| Learning | `/learning/` | Price Action Playbook: interactive chart lessons, position size calculator, quiz |
+| Ledger | `/ledger/` | Options P&L ledger: import a Robinhood activity CSV for daily and monthly P&L, rules check, risk stats |
+
+## About the ledger's data
+
+The hosted ledger keeps everything in the browser's local storage. Nothing is uploaded and no trade data is stored in this repo. Data is per browser and per device, so import your CSV again on each one. Clearing site data removes it.
 
 ## Hosting
 
@@ -13,6 +18,6 @@ Any static host works. For GitHub Pages: Settings > Pages > Deploy from a branch
 
 ## Adding a page
 
-Create a folder with an `index.html` and add a card for it in the root `index.html`.
+Create a folder with an `index.html`, then add a link to it in the nav bar of each page (the `otl-nav` block near the top) and a card on the landing page.
 
 All prices in the lessons are illustrative. Educational only, not financial advice.
