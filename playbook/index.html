@@ -1,0 +1,821 @@
+<title>Price Action Playbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky module rail, then one long page where every module is a live chart lab you click through. */
+:root{
+  --bg:#F2F5F8; --surface:#FFFFFF; --surface-2:#E8EDF2; --ink:#13202C; --ink-2:#506172; --line:#D3DBE3;
+  --accent:#A85F00; --accent-ink:#FFFFFF;
+  --up:#17805F; --dn:#C8402F; --lvl:#A85F00; --zone:rgba(168,95,0,.10); --vwap:#3F6FB5;
+  --f-display:'Bricolage Grotesque','Avenir Next',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141D26; --surface-2:#1B2733; --ink:#E5EBF1; --ink-2:#9BADBD; --line:#283644;
+  --accent:#F0A43A; --accent-ink:#1A1203; --up:#3CBF98; --dn:#F2705F; --lvl:#F0A43A; --zone:rgba(240,164,58,.12); --vwap:#6FA1E8;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141D26; --surface-2:#1B2733; --ink:#E5EBF1; --ink-2:#9BADBD; --line:#283644;
+  --accent:#F0A43A; --accent-ink:#1A1203; --up:#3CBF98; --dn:#F2705F; --lvl:#F0A43A; --zone:rgba(240,164,58,.12); --vwap:#6FA1E8;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 72px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+.wrap{max-width:980px;margin:0 auto}
+h1,h2{font-family:var(--f-display);font-weight:800;letter-spacing:-.02em;line-height:1.08;margin:0;text-wrap:balance}
+p{margin:0}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0 8px}
+.rail-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.brand{font:800 17px var(--f-display);letter-spacing:-.01em}
+.prog{font:500 12px var(--f-mono);color:var(--ink-2)}
+.pills{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pills::-webkit-scrollbar{display:none}
+.pill{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;display:flex;gap:7px;align-items:center}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.pill.done i{background:var(--up)}
+.pill[aria-current="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.hero{padding:44px 0 12px;max-width:720px}
+.hero h1{font-size:clamp(32px,6.4vw,56px)}
+.hero .lead{margin-top:16px;font-size:17px;color:var(--ink-2)}
+.hero .fine{margin-top:14px;font-size:13px;color:var(--ink-2)}
+.eyebrow{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+
+.module{padding:44px 0 8px;scroll-margin-top:88px}
+.mod-head{max-width:700px}
+.mod-head h2{font-size:clamp(26px,4.6vw,38px)}
+.mod-head .lead{margin-top:12px;color:var(--ink-2);font-size:16px}
+
+.lab{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:18px;min-width:0}
+.lab-title{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
+.lab>p.hint{color:var(--ink-2);font-size:14px;margin-bottom:10px;max-width:640px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button,.chip,.btn{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 13px;cursor:pointer;min-height:34px}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:7px}
+.chip i{width:10px;height:10px;border-radius:50%;background:var(--c,var(--accent));opacity:.35}
+.chip[aria-pressed="true"]{border-color:var(--c,var(--accent));box-shadow:inset 0 0 0 1px var(--c,var(--accent))}
+.chip[aria-pressed="true"] i{opacity:1}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.chart{width:100%;min-width:0}
+.chart svg{display:block;max-width:100%}
+.caption{margin-top:12px;max-width:720px}
+.caption b{font-weight:600}
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px}
+.read div{border-top:2px solid var(--line);padding-top:8px;font-size:14px}
+.read b{display:block;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);margin-bottom:2px}
+.optnote{background:var(--surface-2);border-radius:8px;padding:12px 14px;margin-top:14px;font-size:14px}
+.optnote b{display:block;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:2px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.dots{display:flex;gap:5px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent)}
+
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 4px}
+
+.takeaways{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:22px}
+.takeaways div{border-top:2px solid var(--ink);padding-top:10px;font-size:14px}
+.takeaways b{display:block;font-size:15px;margin-bottom:2px}
+.mod-foot{margin-top:20px;display:flex;justify-content:flex-end}
+.done-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+.done-btn[aria-pressed="true"]{background:var(--up);border-color:var(--up);color:#fff}
+
+/* chart svg */
+.g{stroke:var(--line);stroke-width:1}
+.pt{font:400 10px var(--f-mono);fill:var(--ink-2)}
+.up{fill:var(--up);stroke:var(--up)} .dn{fill:var(--dn);stroke:var(--dn)}
+.wk{stroke-width:1.5;fill:none} .bd{stroke-width:1}
+.lv{stroke:var(--lvl);stroke-width:1.2;stroke-dasharray:5 4;fill:none}
+.lt{font:500 11px var(--f-mono);fill:var(--lvl);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.zone{fill:var(--zone)} .zone.or{fill:color-mix(in srgb,var(--ink) 8%,transparent)}
+.lv.pm{stroke:var(--ink-2)} .lt.pm{fill:var(--ink-2)} .lv.or{stroke:var(--ink)} .lt.or{fill:var(--ink)}
+.lt.e{fill:var(--ink)} .lt.s{fill:var(--dn)} .lt.t{fill:var(--up)} .lt.v{fill:var(--vwap)}
+.vw{stroke:var(--vwap);stroke-width:1.8;fill:none}
+.ln-e{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:2 3} .ln-s{stroke:var(--dn);stroke-width:1.2;stroke-dasharray:6 3} .ln-t{stroke:var(--up);stroke-width:1.2;stroke-dasharray:6 3}
+.mk rect{fill:var(--surface);stroke:var(--line)}
+.mk text{font:500 11px var(--f-body);fill:var(--ink)}
+.mk.e rect{fill:var(--ink);stroke:var(--ink)} .mk.e text{fill:var(--bg)}
+.mk.s rect{fill:var(--dn);stroke:var(--dn)} .mk.s text,.mk.t text{fill:#fff}
+.mk.t rect{fill:var(--up);stroke:var(--up)}
+.ring{fill:none;stroke:var(--accent);stroke-width:2}
+.anat text{font:500 14px var(--f-body);fill:var(--ink)}
+.anat .sub{font:400 12px var(--f-mono);fill:var(--ink-2)}
+.anat[data-focus="body"] .pw,.anat[data-focus="body"] .pc{opacity:.18}
+.anat[data-focus="wicks"] .pb,.anat[data-focus="wicks"] .pc{opacity:.18}
+.anat[data-focus="close"] .pb,.anat[data-focus="close"] .pw{opacity:.18}
+.anat .pc line{stroke:var(--accent);stroke-width:2}
+
+/* calculator */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.field{margin-bottom:14px}
+.field label{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.val{font-family:var(--f-mono);font-weight:500}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stat{border-top:2px solid var(--line);padding-top:8px}
+.stat span{display:block;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+.stat strong{font:800 26px var(--f-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat.bad strong{color:var(--dn)} .stat.good strong{color:var(--up)}
+.warn{margin-top:12px;font-size:14px;padding:10px 12px;border-radius:8px;background:var(--surface-2)}
+.tbl{overflow-x:auto;margin-top:6px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+
+/* checklist and quiz */
+.check{display:grid;gap:6px}
+.check label{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:14px}
+.check input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.verdict{margin-top:12px;padding:12px 14px;border-radius:8px;font-weight:500;background:var(--surface-2)}
+.verdict.ok{background:var(--up);color:#fff}
+.qmeta{display:flex;justify-content:space-between;font:500 12px var(--f-mono);color:var(--ink-2);margin-bottom:8px}
+.qtext{font-size:17px;font-weight:600;margin-bottom:12px;max-width:680px}
+.qopts{display:grid;gap:8px;margin-top:12px}
+.qopt{text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:14px;cursor:pointer}
+.qopt:hover:not(:disabled){border-color:var(--ink)}
+.qopt.right{border-color:var(--up);box-shadow:inset 0 0 0 1px var(--up)}
+.qopt.wrong{border-color:var(--dn);box-shadow:inset 0 0 0 1px var(--dn)}
+.qexp{margin-top:12px;padding:12px 14px;background:var(--surface-2);border-radius:8px;font-size:14px}
+.bars{display:grid;gap:8px;margin-top:12px}
+.bar{display:grid;grid-template-columns:110px 1fr 44px;gap:10px;align-items:center;font-size:13px}
+.bar span.t{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.bar span.t i{display:block;height:100%;background:var(--up)}
+.bar.low span.t i{background:var(--dn)}
+.score{font:800 44px var(--f-display);letter-spacing:-.03em}
+.fine-end{margin-top:40px;font-size:12px;color:var(--ink-2);max-width:640px}
+
+@media (max-width:720px){.calc{grid-template-columns:1fr}.bar{grid-template-columns:84px 1fr 40px}}
+@media (prefers-reduced-motion:no-preference){.pill,.tabs button,.chip,.qopt{transition:background .15s,border-color .15s}}
+</style>
+<div class="wrap">
+<nav class="rail" aria-label="Modules">
+  <div class="rail-top"><span class="brand">Price Action Playbook</span><span class="prog" id="prog">0 of 7 done</span></div>
+  <div class="pills" id="pills"></div>
+</nav>
+
+<header class="hero">
+  <p class="eyebrow">Day trading options from price alone</p>
+  <h1>Read the chart first. Choose the contract second.</h1>
+  <p class="lead">Seven short labs. Each has a chart you can click through, then a few lines on how it changes the option you buy. A quiz at the end checks what stuck.</p>
+  <p class="fine">All charts use made-up, SPY-style prices built for teaching. They are not real quotes. Educational only, not financial advice.</p>
+</header>
+
+<main>
+
+<section class="module" id="m1" data-title="Candles">
+  <div class="mod-head">
+    <p class="eyebrow">Module 1 of 7</p>
+    <h2>One candle is a tug of war</h2>
+    <p class="lead">Each bar records where trading opened, where it closed, and how far each side pushed. A wick marks a push that got rejected.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Anatomy</div>
+    <div class="tabs" id="anat-tabs"></div>
+    <div id="anat" class="chart"></div>
+    <p class="caption" id="anat-cap"></p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Five candles worth knowing</div>
+    <div class="tabs" id="pat-tabs"></div>
+    <div id="pat" class="chart"></div>
+    <div class="read" id="pat-read"></div>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Why you wait for the close</div>
+    <p class="hint">Drag the slider through one 5-minute bar. Price is testing a resistance level at 610.</p>
+    <input type="range" id="bar-range" min="0" max="100" value="40" aria-label="Progress through the 5-minute bar">
+    <div id="bar" class="chart"></div>
+    <p class="caption" id="bar-cap"></p>
+  </div>
+  <div class="takeaways">
+    <div><b>Close location beats color</b>A green candle that closes in the lower half of its range is weaker than it looks.</div>
+    <div><b>Context makes the signal</b>A hammer at support means something. A hammer in the middle of nowhere is noise.</div>
+    <div><b>Act on closed bars</b>Mid-bar, a breakout can still turn into a rejection wick. Theta charges you while you guess.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m1" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m2" data-title="Structure">
+  <div class="mod-head">
+    <p class="eyebrow">Module 2 of 7</p>
+    <h2>Structure tells you which side to be on</h2>
+    <p class="lead">Swing highs and swing lows give the trend a shape. Higher highs and higher lows mean buyers are in control. The reverse means sellers are.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Four shapes of the market</div>
+    <div class="tabs" id="str-tabs"></div>
+    <div id="str" class="chart"></div>
+    <p class="caption" id="str-cap"></p>
+    <div class="optnote" id="str-opt"></div>
+  </div>
+  <div class="takeaways">
+    <div><b>HH + HL is an uptrend</b>Each push goes higher and each dip holds above the last dip.</div>
+    <div><b>The last swing is the line</b>The most recent higher low in an uptrend is where the idea breaks if price closes under it.</div>
+    <div><b>Ranges are not trends</b>Price bouncing between two levels pays for patience, not for chasing.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m2" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m3" data-title="Levels">
+  <div class="mod-head">
+    <p class="eyebrow">Module 3 of 7</p>
+    <h2>Levels are where decisions get made</h2>
+    <p class="lead">Price reacts at the same places because many traders watch the same places. Turn each layer on and see how a single morning respects them.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">One morning on a 5-minute chart</div>
+    <div class="tabs" id="lvl-tabs"></div>
+    <div id="lvl" class="chart"></div>
+    <p class="caption" id="lvl-cap"></p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">What each level is</div>
+    <div class="tbl"><table>
+      <thead><tr><th>Level</th><th>Where it comes from</th><th>Why price reacts</th></tr></thead>
+      <tbody>
+        <tr><td>Prior day high / low</td><td>Yesterday's regular session extremes</td><td>Stops and breakout orders cluster just beyond them</td></tr>
+        <tr><td>Premarket high / low</td><td>Extremes before 9:30 ET</td><td>Marks where early positions are trapped or comfortable</td></tr>
+        <tr><td>Opening range</td><td>High and low of the first 30 minutes</td><td>A close outside it shows which side won the open</td></tr>
+        <tr><td>VWAP</td><td>Volume-weighted average price of the day</td><td>Institutions benchmark against it, so it acts as a magnet and a floor or ceiling</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="takeaways">
+    <div><b>Fewer levels, better levels</b>Mark four or five. A chart with fifteen lines gives an excuse for every trade.</div>
+    <div><b>Zones, not hairlines</b>Price often wicks a few cents through. Treat a level as a thin band.</div>
+    <div><b>Levels flip</b>Broken resistance often becomes support. That flip is the setup in Module 4.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m3" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m4" data-title="Setups">
+  <div class="mod-head">
+    <p class="eyebrow">Module 4 of 7</p>
+    <h2>Three setups cover most of the day</h2>
+    <p class="lead">Step through each one. Every setup has the same parts: a level, a trigger candle, a stop where the idea is wrong, and a target at least twice the risk.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Step-by-step setups</div>
+    <div class="tabs" id="set-tabs"></div>
+    <div id="set" class="chart"></div>
+    <p class="caption" id="set-cap"></p>
+    <div class="controls">
+      <button class="btn" id="set-back">Back</button>
+      <button class="btn primary" id="set-next">Next step</button>
+      <div class="dots" id="set-dots"></div>
+    </div>
+    <div class="optnote" id="set-opt"></div>
+  </div>
+  <div class="takeaways">
+    <div><b>Breakout and retest</b>Wait for the level to flip. Entering on the retest gives a closer stop than chasing the breakout.</div>
+    <div><b>Failed breakout</b>A close back inside the range traps late buyers. Their exits fuel the move the other way.</div>
+    <div><b>Trend pullback</b>Buy the dip to a higher low or VWAP in an uptrend, only after a bullish candle closes.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m4" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m5" data-title="Options">
+  <div class="mod-head">
+    <p class="eyebrow">Module 5 of 7</p>
+    <h2>Turn a chart idea into a contract</h2>
+    <p class="lead">The stop lives on the stock chart. The contract only has to be sized so that a stop-out costs what you planned. Move the sliders and watch the contract count change.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Position size calculator</div>
+    <div class="tabs" id="cal-tabs"></div>
+    <div class="calc">
+      <div>
+        <div class="field"><label for="c-stop">Stop distance on the chart <span class="val" id="v-stop"></span></label><input type="range" id="c-stop" min="0.3" max="3" step="0.1" value="1.5"></div>
+        <div class="field"><label for="c-tgt">Target distance on the chart <span class="val" id="v-tgt"></span></label><input type="range" id="c-tgt" min="0.5" max="8" step="0.1" value="3"></div>
+        <div class="field"><label for="c-delta">Option delta <span class="val" id="v-delta"></span></label><input type="range" id="c-delta" min="0.2" max="0.8" step="0.05" value="0.5"></div>
+        <div class="field"><label for="c-prem">Premium per contract <span class="val" id="v-prem"></span></label><input type="range" id="c-prem" min="20" max="200" step="5" value="55"></div>
+        <div class="field"><label for="c-risk">Max loss you accept <span class="val" id="v-risk"></span></label><input type="range" id="c-risk" min="25" max="250" step="5" value="100"></div>
+        <div class="field"><label for="c-slip">Spread and slippage per contract <span class="val" id="v-slip"></span></label><input type="range" id="c-slip" min="0" max="15" step="1" value="4"></div>
+      </div>
+      <div>
+        <div class="stats" id="c-stats"></div>
+        <div id="c-chart" class="chart" style="margin-top:14px"></div>
+        <p class="warn" id="c-warn"></p>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px">Estimates use delta only. Real fills also move with gamma, theta and implied volatility, so treat the numbers as a planning tool.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Picking the strike</div>
+    <div class="tbl"><table>
+      <thead><tr><th>Choice</th><th>Typical delta</th><th>Cost</th><th>Behavior on a day trade</th></tr></thead>
+      <tbody>
+        <tr><td>In the money</td><td>0.65 to 0.80</td><td>High</td><td>Tracks the stock closely and loses less to theta. Fewer contracts for the same risk.</td></tr>
+        <tr><td>At the money</td><td>About 0.50</td><td>Medium</td><td>Balanced. The usual default for a clean level-to-level move.</td></tr>
+        <tr><td>Out of the money</td><td>0.15 to 0.35</td><td>Low</td><td>Needs a large, fast move. Cheap contracts win rarely and decay fast, which is how small accounts bleed.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="takeaways">
+    <div><b>Stop on the stock</b>Decide the exit from the chart, then size the contract to fit it. Never start from the premium.</div>
+    <div><b>Size, don't guess</b>Contracts = max loss divided by loss per contract at your stop.</div>
+    <div><b>Time is a cost</b>If the move needs hours, a 0DTE contract is the wrong tool. Take a later expiry.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m5" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m6" data-title="Risk">
+  <div class="mod-head">
+    <p class="eyebrow">Module 6 of 7</p>
+    <h2>The checklist that keeps the account alive</h2>
+    <p class="lead">Edge is small and risk is large. Run this list before every entry. If any box stays empty, you wait.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Before you click buy</div>
+    <div class="check" id="check"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Break-even win rate by reward-to-risk</div>
+    <div class="tabs" id="rr-tabs"></div>
+    <div id="rr" class="chart"></div>
+    <p class="caption" id="rr-cap"></p>
+  </div>
+  <div class="takeaways">
+    <div><b>Starter rules</b>Risk about 1 to 2 percent of the options bucket per trade. Stop for the day after two rule-following losses.</div>
+    <div><b>Journal every trade</b>Screenshot the chart, note the setup, and mark whether you followed the checklist.</div>
+    <div><b>Paper first</b>Take twenty practice trades on one setup before risking money on it.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m6" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m7" data-title="Quiz">
+  <div class="mod-head">
+    <p class="eyebrow">Module 7 of 7</p>
+    <h2>Check what stuck</h2>
+    <p class="lead">Twelve questions across the six modules. You get feedback after each answer and a breakdown by module at the end.</p>
+  </div>
+  <div class="lab" id="quiz"></div>
+</section>
+
+</main>
+<p class="fine-end">Educational content only, not financial advice. Options can lose their full premium quickly. Check your broker's day-trading rules before you trade.</p>
+</div>
+<script>
+/* ---------- core helpers and chart engine ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const f2=n=>n.toFixed(2);
+const REG=[];
+function mount(fn){REG.push(fn);fn();}
+let _rt;addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(()=>REG.forEach(f=>f()),120);});
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const mk=a=>a.map(([o,h,l,c])=>({o,h,l,c}));
+
+function gen(wp,seed,noise){
+  const r=rng(seed),n=wp[wp.length-1].i+1,out=[];let prev=wp[0].p;
+  for(let i=0;i<n;i++){
+    let k=0;while(k<wp.length-2&&wp[k+1].i<i)k++;
+    const a=wp[k],b=wp[k+1],t=Math.min(1,Math.max(0,(i-a.i)/((b.i-a.i)||1)));
+    const c=a.p+(b.p-a.p)*t+(r()-.5)*noise*1.2,o=i===0?wp[0].p:prev;
+    out.push({o,h:Math.max(o,c)+r()*noise*.7,l:Math.min(o,c)-r()*noise*.7,c});prev=c;
+  }
+  wp.forEach(w=>{
+    if(!w.t)return;
+    for(let j=Math.max(0,w.i-3);j<=Math.min(n-1,w.i+3);j++){
+      const cd=out[j];
+      if(w.t==='H'){
+        if(j===w.i){cd.h=w.p;cd.c=Math.min(cd.c,w.p-noise*.3);cd.o=Math.min(cd.o,w.p-noise*.3);}
+        else{cd.h=Math.min(cd.h,w.p-.03);cd.o=Math.min(cd.o,cd.h);cd.c=Math.min(cd.c,cd.h);}
+      }else{
+        if(j===w.i){cd.l=w.p;cd.c=Math.max(cd.c,w.p+noise*.3);cd.o=Math.max(cd.o,w.p+noise*.3);}
+        else{cd.l=Math.max(cd.l,w.p+.03);cd.o=Math.max(cd.o,cd.l);cd.c=Math.max(cd.c,cd.l);}
+      }
+    }
+  });
+  out.forEach(cd=>{cd.h=Math.max(cd.h,cd.o,cd.c);cd.l=Math.min(cd.l,cd.o,cd.c);});
+  return out;
+}
+function span(C,extra,pad){
+  let lo=Infinity,hi=-Infinity;
+  C.forEach(c=>{lo=Math.min(lo,c.l);hi=Math.max(hi,c.h);});
+  (extra||[]).forEach(p=>{lo=Math.min(lo,p);hi=Math.max(hi,p);});
+  const d=(hi-lo)*(pad==null?.12:pad);return{ymin:lo-d,ymax:hi+d};
+}
+
+/* o: candles, n, ymin, ymax, show, zones, levels, lines, rings, marks, times, alt, h */
+function plot(host,o){
+  const W=Math.max(260,host.clientWidth||320),H=o.h||Math.round(Math.min(360,Math.max(230,W*.52)));
+  const L=6,R=46,T=16,B=o.times?22:10,C=o.candles,n=o.n||C.length,lo=o.ymin,hi=o.ymax;
+  const step=(W-L-R)/n,cw=Math.max(2,Math.min(22,step*.62));
+  const y=p=>T+(hi-p)/(hi-lo)*(H-T-B),x=i=>L+step*(i+.5);
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.alt||'Candlestick chart')}">`;
+  for(let k=0;k<=4;k++){
+    const p=lo+(hi-lo)*k/4;
+    s+=`<line class="g" x1="${L}" x2="${W-R}" y1="${y(p)}" y2="${y(p)}"/><text class="pt" x="${W-R+5}" y="${y(p)+3}">${p.toFixed(1)}</text>`;
+  }
+  (o.zones||[]).forEach(z=>{
+    const x0=L+step*z.i0,x1=L+step*(z.i1+1);
+    s+=`<rect class="zone ${z.cls||''}" x="${x0}" y="${y(z.p1)}" width="${x1-x0}" height="${y(z.p0)-y(z.p1)}"/>`;
+    if(z.label)s+=`<text class="lt ${z.cls||''}" x="${x0+4}" y="${y(z.p1)+13}">${esc(z.label)}</text>`;
+  });
+  (o.levels||[]).forEach(v=>{
+    const x0=v.from!=null?x(v.from):L;
+    s+=`<line class="${v.line||'lv'} ${v.cls||''}" x1="${x0}" x2="${W-R}" y1="${y(v.p)}" y2="${y(v.p)}"/>`;
+    if(v.label){
+      const right=v.side==='r';
+      s+=`<text class="lt ${v.cls||''}" x="${right?W-R-4:x0+4}" y="${y(v.p)+(v.dy!=null?v.dy:-5)}" text-anchor="${right?'end':'start'}">${esc(v.label)}</text>`;
+    }
+  });
+  (o.lines||[]).forEach(l=>{
+    s+=`<polyline class="${l.cls||'vw'}" points="${l.pts.filter(q=>o.show==null||q.i<o.show).map(q=>x(q.i)+','+y(q.p)).join(' ')}"/>`;
+  });
+  C.forEach((c,i)=>{
+    if(o.show!=null&&i>=o.show)return;
+    const cl=c.c>=c.o?'up':'dn',yo=y(c.o),yc=y(c.c);
+    s+=`<g class="${cl}"><line class="wk" x1="${x(i)}" x2="${x(i)}" y1="${y(c.h)}" y2="${y(c.l)}"/><rect class="bd" x="${x(i)-cw/2}" y="${Math.min(yo,yc)}" width="${cw}" height="${Math.max(1.5,Math.abs(yo-yc))}" rx="1"/></g>`;
+  });
+  (o.rings||[]).forEach(i=>{
+    if(o.show!=null&&i>=o.show)return;
+    const c=C[i];s+=`<ellipse class="ring" cx="${x(i)}" cy="${(y(c.h)+y(c.l))/2}" rx="${Math.max(12,cw)}" ry="${Math.abs(y(c.h)-y(c.l))/2+8}"/>`;
+  });
+  (o.marks||[]).forEach(m=>{
+    if(o.show!=null&&m.i>=o.show)return;
+    const c=C[m.i],pw=m.label.length*6.4+14,ph=19,cx=Math.min(Math.max(x(m.i),L+pw/2),W-R-pw/2);
+    const above=m.pos!=='b',yy=above?y(c.h):y(c.l),py=above?yy-10-ph:yy+10;
+    s+=`<g class="mk ${m.cls||''}"><line class="g" x1="${x(m.i)}" x2="${x(m.i)}" y1="${above?yy-3:yy+3}" y2="${above?yy-10:yy+10}"/><rect x="${cx-pw/2}" y="${py}" width="${pw}" height="${ph}" rx="9"/><text x="${cx}" y="${py+13}" text-anchor="middle">${esc(m.label)}</text></g>`;
+  });
+  (o.times||[]).forEach(t=>{s+=`<text class="pt" x="${x(t.i)}" y="${H-6}" text-anchor="middle">${t.label}</text>`;});
+  host.innerHTML=s+'</svg>';
+}
+function tabs(host,items,start,cb){
+  host.innerHTML=items.map((t,i)=>`<button type="button" aria-pressed="${i===start}" data-i="${i}">${esc(t)}</button>`).join('');
+  host.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    $$('button',host).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(+b.dataset.i);
+  });
+}
+
+/* ---------- Module 1: anatomy ---------- */
+(function(){
+  const host=$('#anat'),cap=$('#anat-cap');
+  const caps={
+    all:'A candle holds four prices: open, high, low and close. Pick a tab to isolate one idea.',
+    body:'The body runs from open to close. A tall body means one side controlled the bar from start to finish.',
+    wicks:'Wicks are prices that traded but could not hold. A long upper wick means buyers pushed up and sellers pushed them back down.',
+    close:'Where the bar closes inside its range is the last word. A close near the high shows buying pressure. A close near the low shows selling pressure.'
+  };
+  const keys=['all','body','wicks','close'];
+  function draw(f){
+    host.innerHTML=`<svg class="anat" data-focus="${f}" viewBox="0 0 520 262" style="width:100%;height:auto" role="img" aria-label="A bullish and a bearish candle with open, high, low and close labelled">
+    <g class="up"><g class="pw"><line class="wk" x1="130" x2="130" y1="28" y2="80"/><line class="wk" x1="130" x2="130" y1="176" y2="226"/></g><g class="pb"><rect class="bd" x="98" y="80" width="64" height="96" rx="2"/></g></g>
+    <g class="dn"><g class="pw"><line class="wk" x1="400" x2="400" y1="28" y2="80"/><line class="wk" x1="400" x2="400" y1="176" y2="226"/></g><g class="pb"><rect class="bd" x="368" y="80" width="64" height="96" rx="2"/></g></g>
+    <g class="pc"><line x1="90" x2="170" y1="80" y2="80"/><line x1="360" x2="440" y1="176" y2="176"/></g>
+    <text x="76" y="33" text-anchor="end">High</text><text x="76" y="84" text-anchor="end">Close</text><text x="76" y="180" text-anchor="end">Open</text><text x="76" y="231" text-anchor="end">Low</text>
+    <text x="184" y="56">Upper wick</text><text x="184" y="132">Body</text><text x="184" y="206">Lower wick</text>
+    <text x="446" y="33">High</text><text x="446" y="84">Open</text><text x="446" y="180">Close</text><text x="446" y="231">Low</text>
+    <text x="346" y="56" text-anchor="end">Upper wick</text><text x="346" y="132" text-anchor="end">Body</text><text x="346" y="206" text-anchor="end">Lower wick</text>
+    <text class="sub" x="130" y="253" text-anchor="middle">Bullish: close above open</text><text class="sub" x="400" y="253" text-anchor="middle">Bearish: close below open</text></svg>`;
+    cap.textContent=caps[f];
+  }
+  tabs($('#anat-tabs'),['Everything','Body','Wicks','Close location'],0,i=>draw(keys[i]));
+  draw('all');
+})();
+
+/* ---------- Module 1: five candles ---------- */
+(function(){
+  const P=[
+    {n:'Hammer',lvl:{p:600,label:'Support 600'},ring:4,c:[[604,604.6,603.2,603.5],[603.5,603.8,602.2,602.5],[602.5,602.9,601.3,601.6],[601.6,601.9,600.4,600.8],[600.8,601,598.9,600.7],[600.7,602,600.5,601.8]],
+     what:'Price slid into support, dipped through it, then closed back near the high of the bar.',read:'Sellers pushed to a new low and were rejected. Possible bullish reversal.',opt:'Wait for the next candle to hold above the hammer high before thinking about calls.'},
+    {n:'Shooting star',lvl:{p:610,label:'Resistance 610'},ring:4,c:[[606,606.8,605.8,606.6],[606.6,607.6,606.5,607.4],[607.4,608.6,607.3,608.4],[608.4,609.6,608.3,609.4],[609.4,611.2,609.2,609.5],[609.5,609.7,608.2,608.4]],
+     what:'Price rallied into resistance, spiked above it, and closed near the low of the bar.',read:'Buyers pushed to a new high and were rejected. Possible bearish reversal.',opt:'A close under the star low gives a trigger for puts, with the stop above the wick.'},
+    {n:'Marubozu',lvl:{p:604.6,label:'Resistance 604.6'},ring:4,c:[[603.6,604.4,603.3,604],[604,604.6,603.5,603.9],[603.9,604.5,603.6,604.3],[604.3,604.6,603.8,604.1],[604.1,607.2,604,607.1],[607.1,608,606.9,607.8]],
+     what:'A long body with almost no wicks. Buyers owned the bar from open to close and cleared resistance.',read:'Strong momentum. The break is real until price closes back under the level.',opt:'Do not chase the top of it. Wait for a pullback to the broken level (Module 4).'},
+    {n:'Doji',lvl:{p:606.3,label:'Resistance 606.3'},ring:4,c:[[602,603,601.8,602.9],[602.9,604,602.8,603.8],[603.8,604.8,603.7,604.7],[604.7,605.7,604.6,605.6],[605.6,606.4,604.9,605.65],[605.65,605.7,604.2,604.4]],
+     what:'Open and close nearly equal, with wicks on both sides. After a run into resistance, neither side won.',read:'Indecision. At a level after a trend it can warn of a pause or turn.',opt:'A doji alone is not a trade. The candle after it decides.'},
+    {n:'Engulfing',lvl:{p:601,label:'Support 601'},ring:4,c:[[604,604.3,603.2,603.4],[603.4,603.7,602.6,602.8],[602.8,603,601.8,602],[602,602.3,601.2,601.4],[601.3,603.4,601.1,603.2],[603.2,604.2,603,604]],
+     what:'A large green body that covers the whole body of the prior red candle, at support.',read:'Control flipped from sellers to buyers within one bar.',opt:'Entry on a break of the engulfing high, stop under its low.'}
+  ];
+  const host=$('#pat'),read=$('#pat-read');
+  function draw(i){
+    const p=P[i],C=mk(p.c),r=span(C,[p.lvl.p],.18);
+    plot(host,{candles:C,...r,n:C.length+2,levels:[{p:p.lvl.p,label:p.lvl.label}],rings:[p.ring],alt:p.n+' candle example'});
+    read.innerHTML=`<div><b>What happened</b>${p.what}</div><div><b>Read as</b>${p.read}</div><div><b>Options angle</b>${p.opt}</div>`;
+  }
+  let cur=0;tabs($('#pat-tabs'),P.map(p=>p.n),0,i=>{cur=i;draw(i);});
+  mount(()=>draw(cur));
+})();
+
+/* ---------- Module 1: wait for the close ---------- */
+(function(){
+  const prior=mk([[607.9,608.5,607.7,608.3],[608.3,609,608.1,608.8],[608.8,609.6,608.6,609.3],[609.3,609.9,609,609.5],[609.5,609.9,609.1,609.4],[609.4,609.8,609.2,609.6]]);
+  const ticks=[609.6,609.8,610,610.3,610.6,610.8,611,610.9,610.7,610.5,610.2,610,609.9,609.8,609.7,609.6,609.5,609.5,609.4,609.4,609.4];
+  const host=$('#bar'),cap=$('#bar-cap'),rg=$('#bar-range');
+  function draw(){
+    const k=Math.round(rg.value/100*20),seg=ticks.slice(0,k+1),c=seg[k],h=Math.max(...seg),l=Math.min(...seg);
+    const C=prior.concat([{o:609.6,h,l,c}]);
+    plot(host,{candles:C,n:9,ymin:607.3,ymax:611.5,levels:[{p:610,label:'Resistance 610.00'}],alt:'A 5-minute candle forming under resistance at 610'});
+    let t;
+    if(k===20)t=`<b>Bar closed at ${f2(c)}.</b> It spiked ${f2(h-610)} above 610 and finished back below it. That is a rejection wick. Anyone who bought the poke is now underwater.`;
+    else if(c>610)t=`<b>Price ${f2(c)} is above 610 right now.</b> It looks like a breakout, but the bar is still open and can reverse. Keep dragging.`;
+    else if(h>610)t=`<b>Price poked above 610 and slipped back to ${f2(c)}.</b> A rejection wick is forming.`;
+    else t=`<b>Price ${f2(c)} is still under the level.</b> Nothing to act on yet.`;
+    cap.innerHTML=t;
+  }
+  rg.addEventListener('input',draw);mount(draw);
+})();
+
+/* ---------- Module 2: structure ---------- */
+(function(){
+  const sets=[];
+  function add(name,wp,seed,marks,levels,zones,cap,opt,brk){
+    const C=gen(wp,seed,.5);
+    const m=marks.map(([i,label,pos])=>({i,label,pos}));
+    if(brk){let j=19;while(j<C.length&&C[j].c>=105.5)j++;m.push({i:j,label:'Structure break',pos:'b',cls:'s'});}
+    sets.push({name,C,m,levels,zones,cap,opt});
+  }
+  add('Uptrend',[{i:0,p:100,t:'L'},{i:5,p:104,t:'H'},{i:9,p:102,t:'L'},{i:15,p:108,t:'H'},{i:19,p:105.5,t:'L'},{i:26,p:112,t:'H'}],11,
+    [[5,'High','a'],[9,'HL','b'],[15,'HH','a'],[19,'HL','b'],[26,'HH','a']],[],[],
+    'Higher highs and higher lows. Every dip is bought above the previous dip, so sellers cannot push price under the last low.',
+    '<b>Options angle</b>Look for calls on pullbacks toward the latest higher low. Skip puts until a higher low fails.');
+  add('Downtrend',[{i:0,p:112,t:'H'},{i:5,p:108,t:'L'},{i:9,p:110,t:'H'},{i:15,p:104,t:'L'},{i:19,p:106.5,t:'H'},{i:26,p:100,t:'L'}],12,
+    [[5,'Low','b'],[9,'LH','a'],[15,'LL','b'],[19,'LH','a'],[26,'LL','b']],[],[],
+    'Lower highs and lower lows. Every bounce fails under the previous bounce, so buyers cannot reclaim the last high.',
+    '<b>Options angle</b>Look for puts on bounces toward the latest lower high. Avoid calls until a lower high is broken.');
+  add('Range',[{i:0,p:100.2,t:'L'},{i:5,p:106,t:'H'},{i:10,p:100.4,t:'L'},{i:15,p:105.7,t:'H'},{i:20,p:100.2,t:'L'},{i:26,p:105.8,t:'H'}],13,
+    [],[{p:106,label:'Resistance 106',side:'r'},{p:100,label:'Support 100',side:'r',dy:14}],[],
+    'Price rotates between support and resistance with no progress. A breakout candle in the middle of the box has no edge.',
+    '<b>Options angle</b>Trade only at the edges with tight stops, or wait for a close outside the box. Premium decays while price goes nowhere.');
+  add('Trend break',[{i:0,p:100,t:'L'},{i:5,p:104,t:'H'},{i:9,p:102,t:'L'},{i:15,p:108,t:'H'},{i:19,p:105.5,t:'L'},{i:24,p:107.2,t:'H'},{i:29,p:103.8}],14,
+    [[15,'HH','a'],[19,'HL','b'],[24,'LH','a']],[{p:105.5,label:'Last higher low 105.50',side:'r',dy:15}],[],
+    'Price made a lower high at 107.20, then closed under the last higher low at 105.50. The pattern of higher lows is broken and the uptrend is in question.',
+    '<b>Options angle</b>Stop buying calls on dips. Wait for a retest of 105.50 from below, which can become a put setup, or wait for a fresh base.',true);
+  const host=$('#str'),cap=$('#str-cap'),opt=$('#str-opt');let cur=0;
+  function draw(){
+    const s=sets[cur],r=span(s.C,s.levels.map(l=>l.p),.2);
+    plot(host,{candles:s.C,...r,marks:s.m,levels:s.levels.map(l=>({...l})),alt:s.name+' market structure example'});
+    cap.textContent=s.cap;opt.innerHTML=s.opt;
+  }
+  tabs($('#str-tabs'),sets.map(s=>s.name),0,i=>{cur=i;draw();});
+  mount(draw);
+})();
+
+/* ---------- Module 3: levels ---------- */
+(function(){
+  const C=gen([{i:0,p:602.2},{i:2,p:603.6,t:'H'},{i:4,p:601.2,t:'L'},{i:7,p:603.2},{i:9,p:604.4,t:'H'},{i:13,p:603.55,t:'L'},{i:19,p:605.3,t:'H'},{i:23,p:604.1,t:'L'},{i:29,p:606.2,t:'H'},{i:32,p:605.2,t:'L'},{i:35,p:606.9}],21,.35);
+  let cv=0,cp=0;const pts=[];
+  C.forEach((c,i)=>{const v=(1.7-i*.03)*(.7+.6*((i*7919)%13)/13);cv+=v;cp+=v*(c.h+c.l+c.c)/3;pts.push({i,p:cp/cv});});
+  const layers=[
+    {k:'pd',n:'Prior day high / low',c:'var(--lvl)',cap:'Price stalled at the prior day high of 605.00, wicked through, then retested it from above before the next leg.',
+      levels:[{p:605,label:'PDH 605.00',side:'r'},{p:599,label:'PDL 599.00',side:'r'}],marks:[{i:19,label:'PDH rejection',pos:'a'},{i:32,label:'PDH retest',pos:'b',cls:'e'}]},
+    {k:'pm',n:'Premarket high / low',c:'var(--ink-2)',cap:'The premarket range of 600.60 to 603.90 boxed the open. The push above 603.90 came with the breakout.',
+      levels:[{p:603.9,label:'PM high 603.90',side:'r',cls:'pm',dy:-5},{p:600.6,label:'PM low 600.60',side:'r',cls:'pm'}],marks:[]},
+    {k:'or',n:'Opening range (30 min)',c:'var(--ink)',cap:'The first 30 minutes set 601.20 to 603.60. A close above 603.60 followed by a retest that held is the classic opening range breakout.',
+      levels:[{p:603.6,label:'ORH 603.60',cls:'or',dy:14},{p:601.2,label:'ORL 601.20',cls:'or',dy:14}],zones:[{i0:0,i1:35,p0:601.2,p1:603.6,cls:'or'}],marks:[{i:9,label:'ORB long',pos:'a',cls:'e'},{i:13,label:'Retest holds',pos:'b'}]},
+    {k:'vw',n:'VWAP',c:'var(--vwap)',cap:'VWAP rises under price through the trend. Pullbacks that hold above it keep calls interesting. A close under it warns that buyers are tiring.',levels:[],marks:[],line:true}
+  ];
+  const on={pd:true,pm:false,or:true,vw:false};
+  const tb=$('#lvl-tabs'),host=$('#lvl'),cap=$('#lvl-cap');
+  tb.innerHTML=layers.map(l=>`<button type="button" class="chip" style="--c:${l.c}" data-k="${l.k}" aria-pressed="${on[l.k]}"><i></i>${l.n}</button>`).join('');
+  tb.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;on[b.dataset.k]=!on[b.dataset.k];b.setAttribute('aria-pressed',on[b.dataset.k]);draw();});
+  function draw(){
+    const act=layers.filter(l=>on[l.k]);
+    const levels=[],zones=[],marks=[],lines=[];
+    act.forEach(l=>{l.levels.forEach(v=>levels.push({...v}));(l.zones||[]).forEach(z=>zones.push(z));l.marks.forEach(m=>marks.push(m));if(l.line)lines.push({pts,cls:'vw'});});
+    const r=span(C,[599,607.3],.04);
+    const times=[0,6,12,18,24,30].map(i=>{const m=570+i*5,h=Math.floor(m/60),mm=m%60;return{i,label:h+':'+String(mm).padStart(2,'0')};});
+    plot(host,{candles:C,...r,n:36,levels,zones,marks,lines,times,h:Math.round(Math.min(400,Math.max(270,(host.clientWidth||320)*.6))),alt:'Five minute chart with key levels'});
+    cap.innerHTML=act.length?act.map(l=>l.cap).join('<br><br>'):'Turn on a layer to see how price treated it.';
+  }
+  mount(draw);
+})();
+/* ---------- Module 4: setups ---------- */
+(function(){
+  const E=(p,l)=>({p,label:l,line:'ln-e',cls:'e',side:'r',dy:-5}),S=(p,l)=>({p,label:l,line:'ln-s',cls:'s',side:'r',dy:13}),T=(p,l,dy)=>({p,label:l,line:'ln-t',cls:'t',side:'r',dy:dy==null?-5:dy});
+  const SET=[
+    {n:'Breakout and retest',C:mk([[598.9,599.5,598.6,599.3],[599.3,599.9,599,599.5],[599.5,600.2,599.3,599.8],[599.8,600.2,599.4,599.6],[599.6,600.1,599.5,599.9],[599.9,601.4,599.8,601.2],[601.2,601.6,600.6,600.9],[600.9,601,600.1,600.5],[600.5,601.5,600.4,601.4],[601.4,602.4,601.3,602.2],[602.2,603.3,602,603.1],[603.1,604,602.9,603.8],[603.8,604.6,603.6,604.4]]),
+     base:[{p:600.2,label:'Resistance 600.20'}],
+     steps:[
+      {show:5,cap:'Price tests 600.20 three times and cannot close above it. That is resistance.'},
+      {show:6,cap:'A candle closes above 600.20 with a big body. This is the breakout. Do not chase it.',marks:[{i:5,label:'Breakout close',pos:'a'}]},
+      {show:8,cap:'Price pulls back and the old resistance holds as support. The wick down to 600.10 shows buyers stepping in. This is the retest.',marks:[{i:7,label:'Retest holds',pos:'b'}],lab:'Old resistance, now support'},
+      {show:9,cap:'A green candle closes off the level. Entry 601.40, stop 599.90 under the retest low. Risk is 1.50 points.',marks:[{i:8,label:'Entry 601.40',pos:'a',cls:'e'}],lv:[E(601.4,'Entry 601.40'),S(599.9,'Stop 599.90')],lab:'Old resistance, now support'},
+      {show:13,cap:'Price reaches the 2R target at 604.40. That is 3.00 points gained for 1.50 risked.',marks:[{i:12,label:'Target hit',pos:'a',cls:'t'}],lv:[E(601.4,'Entry 601.40'),S(599.9,'Stop 599.90'),T(604.4,'Target 604.40')],lab:'Old resistance, now support'}],
+     opt:'<b>Options angle</b>Buy calls, at the money or slightly in the money. The stop is the stock closing under 599.90, not a percentage of the premium.'},
+    {n:'Failed breakout',C:mk([[607.8,608.4,607.6,608.2],[608.2,609,608,608.8],[608.8,609.6,608.6,609.4],[609.4,609.9,609,609.6],[609.6,610.6,609.5,610.3],[610.3,610.7,609.3,609.5],[609.5,609.6,608.7,608.9],[608.9,609,607.6,607.8],[607.8,608,606.4,606.6],[606.6,606.9,605.3,605.5],[605.5,605.9,604.8,605]]),
+     base:[{p:610,label:'Resistance 610.00'}],
+     steps:[
+      {show:4,cap:'Price grinds up under 610 with small pushes. Resistance is 610.'},
+      {show:5,cap:'A candle closes above 610 at 610.30. Breakout buyers jump in.',marks:[{i:4,label:'Breakout close',pos:'a'}]},
+      {show:6,cap:'The next candle closes back under the level at 609.50. The breakout failed and the buyers who chased are trapped.',marks:[{i:4,label:'Breakout close',pos:'a'}],rings:[5]},
+      {show:7,cap:'Price breaks under the failure candle low of 609.30. Entry 609.00, stop 610.80 above the fake-out high. Risk is 1.80 points.',marks:[{i:6,label:'Entry 609.00',pos:'b',cls:'e'}],lv:[E(609,'Entry 609.00'),S(610.8,'Stop 610.80')]},
+      {show:11,cap:'Trapped buyers sell and price falls to the 2R target at 605.40.',marks:[{i:9,label:'Target hit',pos:'b',cls:'t'}],lv:[E(609,'Entry 609.00'),S(610.8,'Stop 610.80'),T(605.4,'Target 605.40',14)]}],
+     opt:'<b>Options angle</b>Buy puts. Failed breakouts move quickly, so a near-the-money put works. Size the contracts from the 1.80 point stop.'},
+    {n:'Trend pullback',C:mk([[600,600.9,599.8,600.7],[600.7,601.8,600.6,601.7],[601.7,602.6,601.5,602.5],[602.5,603.4,602.3,603.3],[603.3,603.5,602.4,602.6],[602.6,602.8,601.7,601.9],[601.9,602.1,601.2,601.5],[601.5,602.4,601.4,602.3],[602.3,603.2,602.2,603.1],[603.1,604.1,603,604],[604,605,603.9,604.8]]),
+     base:[],
+     steps:[
+      {show:4,cap:'Price makes higher highs and higher lows. The trend is up.',marks:[{i:3,label:'Higher high',pos:'a'}]},
+      {show:7,cap:'Three small candles pull back to VWAP near 601.60. The dip is shallow and the low is above where the move began.',marks:[{i:6,label:'Higher low at VWAP',pos:'b'}],lv:[{p:601.6,label:'VWAP 601.60',line:'vw',cls:'v',side:'r',dy:14}]},
+      {show:8,cap:'A candle closes back near its high. This is the trigger candle. Do not buy until a later candle takes out its high.',rings:[7],lv:[{p:601.6,label:'VWAP 601.60',line:'vw',cls:'v',side:'r',dy:14}]},
+      {show:9,cap:'Price takes out the trigger high. Entry 602.40, stop 601.10 under the pullback low. Risk is 1.30 points.',marks:[{i:8,label:'Entry 602.40',pos:'a',cls:'e'}],lv:[{p:601.6,label:'VWAP 601.60',line:'vw',cls:'v',side:'r',dy:14},E(602.4,'Entry 602.40'),S(601.1,'Stop 601.10')]},
+      {show:11,cap:'The trend resumes and price reaches the 2R target at 605.00.',marks:[{i:10,label:'Target hit',pos:'a',cls:'t'}],lv:[{p:601.6,label:'VWAP 601.60',line:'vw',cls:'v',side:'r',dy:14},E(602.4,'Entry 602.40'),S(601.1,'Stop 601.10'),T(605,'Target 605.00')]}],
+     opt:'<b>Options angle</b>Buy calls with a close stop. Skip the trade if price closes under VWAP and the higher low fails.'}
+  ];
+  const host=$('#set'),cap=$('#set-cap'),opt=$('#set-opt'),dots=$('#set-dots'),bk=$('#set-back'),nx=$('#set-next');let cs=0,st=0;
+  function draw(){
+    const s=SET[cs],step=s.steps[st],all=[];
+    s.steps.forEach(x=>(x.lv||[]).forEach(v=>all.push(v.p)));s.base.forEach(v=>all.push(v.p));
+    const r=span(s.C,all,.14),lv=(step.lv||[]).map(v=>({...v}));
+    const base=s.base.map(b=>({...b,label:step.lab||b.label}));
+    plot(host,{candles:s.C,...r,n:s.C.length+1,show:step.show,levels:base.concat(lv),marks:step.marks||[],rings:step.rings||[],alt:s.n+' setup, step '+(st+1)});
+    cap.textContent=step.cap;opt.innerHTML=s.opt;
+    dots.innerHTML=s.steps.map((_,i)=>`<i class="${i<=st?'on':''}"></i>`).join('');
+    bk.disabled=st===0;nx.disabled=st===s.steps.length-1;nx.textContent=st===s.steps.length-1?'Done':'Next step';
+  }
+  tabs($('#set-tabs'),SET.map(s=>s.n),0,i=>{cs=i;st=0;draw();});
+  bk.addEventListener('click',()=>{if(st>0){st--;draw();}});
+  nx.addEventListener('click',()=>{if(st<SET[cs].steps.length-1){st++;draw();}});
+  mount(draw);
+})();
+
+/* ---------- Module 5: position size calculator ---------- */
+(function(){
+  const ids=['stop','tgt','delta','prem','risk','slip'];
+  const el=Object.fromEntries(ids.map(k=>[k,$('#c-'+k)]));
+  const fmt={stop:v=>v.toFixed(1)+' pts',tgt:v=>v.toFixed(1)+' pts',delta:v=>v.toFixed(2),prem:v=>'$'+v,risk:v=>'$'+v,slip:v=>'$'+v};
+  const PRE=[['Breakout and retest',1.5,3.0],['Failed breakout',1.8,3.6],['Trend pullback',1.3,2.6]];
+  tabs($('#cal-tabs'),PRE.map(p=>p[0]),0,i=>{el.stop.value=PRE[i][1];el.tgt.value=PRE[i][2];calc();});
+  el.stop.value=1.5;el.tgt.value=3;el.delta.value=.3;
+  function calc(){
+    const v=Object.fromEntries(ids.map(k=>[k,+el[k].value]));
+    ids.forEach(k=>$('#v-'+k).textContent=fmt[k](v[k]));
+    const raw=v.delta*v.stop*100+v.slip,loss=Math.min(raw,v.prem),gain=v.delta*v.tgt*100-v.slip;
+    const n=loss>0?Math.floor(v.risk/loss):0,cost=n*v.prem,rr=v.tgt/v.stop;
+    $('#c-stats').innerHTML=
+      `<div class="stat"><span>Contracts</span><strong>${n}</strong></div>`+
+      `<div class="stat"><span>Cost to enter</span><strong>$${cost}</strong></div>`+
+      `<div class="stat bad"><span>Loss at stop</span><strong>-$${Math.round(n*loss)}</strong></div>`+
+      `<div class="stat good"><span>Gain at target</span><strong>+$${Math.round(n*gain)}</strong></div>`;
+    let w;
+    if(n===0)w='Your max loss does not cover one contract at this stop. Tighten the stop, choose a lower delta, or accept a larger risk.';
+    else if(rr<2)w=`Reward-to-risk on the chart is ${rr.toFixed(1)} to 1. Below 2 to 1 the trade needs a high win rate to pay.`;
+    else if(raw>v.prem)w='At this premium a stop-out would cost the whole contract. That is usually a sign the contract is too cheap for the move.';
+    else w=`Reward-to-risk is ${rr.toFixed(1)} to 1 and a stop-out costs about $${Math.round(n*loss)}. Size fits your plan.`;
+    $('#c-warn').textContent=w;
+    drawPay(v,n,loss);
+  }
+  function drawPay(v,n,loss){
+    const host=$('#c-chart'),W=Math.max(240,host.clientWidth||300),H=150,L=8,R=8,T=16,B=22;
+    const x0=-v.stop*1.4,x1=v.tgt*1.2,pl=m=>n*Math.max(-loss,v.delta*m*100-v.slip);
+    const ys=[pl(x0),pl(x1),0],lo=Math.min(...ys)-10,hi=Math.max(...ys)+10;
+    const X=m=>L+(m-x0)/(x1-x0)*(W-L-R),Y=p=>T+(hi-p)/(hi-lo)*(H-T-B);
+    let pts='';for(let k=0;k<=40;k++){const m=x0+(x1-x0)*k/40;pts+=X(m)+','+Y(pl(m))+' ';}
+    host.innerHTML=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Estimated profit and loss against stock move">
+    <line class="g" x1="${L}" x2="${W-R}" y1="${Y(0)}" y2="${Y(0)}"/>
+    <line class="ln-s" x1="${X(-v.stop)}" x2="${X(-v.stop)}" y1="${T}" y2="${H-B}"/><line class="ln-t" x1="${X(v.tgt)}" x2="${X(v.tgt)}" y1="${T}" y2="${H-B}"/>
+    <polyline class="vw" points="${pts}"/>
+    <text class="lt s" x="${X(-v.stop)+4}" y="${T+10}">Stop</text><text class="lt t" x="${X(v.tgt)-4}" y="${T+10}" text-anchor="end">Target</text>
+    <text class="pt" x="${L}" y="${H-6}">Stock move (points)</text><text class="pt" x="${W-R}" y="${H-6}" text-anchor="end">Option P&amp;L, estimated</text></svg>`;
+  }
+  ids.forEach(k=>el[k].addEventListener('input',calc));
+  mount(calc);
+})();
+
+/* ---------- Module 6: checklist and break-even ---------- */
+(function(){
+  const items=['I can name the trend: higher highs and lows, lower highs and lows, or a range.','Price is at a level I marked before the trade.','The signal candle has closed.','My stop sits on the stock chart, where the idea is wrong.','Reward is at least twice the risk.','Contracts are sized so a stop-out costs my planned max loss.','I have not hit my daily loss limit and I am not chasing a loss.','I know when I exit if price goes nowhere.'];
+  const host=$('#check'),vd=$('#verdict');
+  host.innerHTML=items.map((t,i)=>`<label><input type="checkbox" id="ck${i}"><span>${t}</span></label>`).join('');
+  function upd(){
+    const n=$$('input',host).filter(c=>c.checked).length;
+    vd.className='verdict'+(n===items.length?' ok':'');
+    vd.textContent=n===items.length?'All clear. Place the order and set your exit.':`Wait. ${items.length-n} of ${items.length} checks are still open.`;
+  }
+  host.addEventListener('change',upd);upd();
+
+  const RR=[1,1.5,2,3],bh=$('#rr'),cap=$('#rr-cap');let cur=2;
+  function draw(){
+    const W=Math.max(260,bh.clientWidth||320),rowH=34,H=RR.length*rowH+8,lw=70,rw=52,bw=W-lw-rw;
+    let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Break-even win rate for each reward-to-risk ratio">`;
+    RR.forEach((r,i)=>{
+      const be=100/(1+r),y=i*rowH+4,on=i===cur;
+      s+=`<text x="0" y="${y+17}" style="font:${on?600:400} 13px var(--f-body);fill:var(--ink)">${r}:1</text>`+
+         `<rect x="${lw}" y="${y+4}" width="${bw}" height="16" rx="8" fill="var(--surface-2)"/>`+
+         `<rect x="${lw}" y="${y+4}" width="${bw*be/100}" height="16" rx="8" fill="${on?'var(--accent)':'var(--ink-2)'}" opacity="${on?1:.45}"/>`+
+         `<text x="${lw+bw+8}" y="${y+17}" style="font:500 12px var(--f-mono);fill:var(--ink)">${be.toFixed(0)}%</text>`;
+    });
+    bh.innerHTML=s+'</svg>';
+    const r=RR[cur],be=100/(1+r),ev=.4*r-.6;
+    cap.innerHTML=`<b>At ${r} to 1, you break even by winning ${be.toFixed(1)}% of trades.</b> If you win 40% of them, each trade averages ${ev>=0?'+':''}${ev.toFixed(2)}R before costs${ev<0?', which loses money over time':''}.`;
+  }
+  tabs($('#rr-tabs'),RR.map(r=>r+' to 1'),2,i=>{cur=i;draw();});
+  mount(draw);
+})();
+/* ---------- Module 7: quiz ---------- */
+(function(){
+  const star=mk([[606,606.8,605.8,606.6],[606.6,607.6,606.5,607.4],[607.4,608.6,607.3,608.4],[608.4,609.6,608.3,609.4],[609.4,611.2,609.2,609.5],[609.5,609.7,608.2,608.4]]);
+  const brk=gen([{i:0,p:100,t:'L'},{i:5,p:104,t:'H'},{i:9,p:102,t:'L'},{i:15,p:108,t:'H'},{i:19,p:105.5,t:'L'},{i:24,p:107.2,t:'H'},{i:29,p:103.8}],14,.5);
+  const fail=mk([[607.8,608.4,607.6,608.2],[608.2,609,608,608.8],[608.8,609.6,608.6,609.4],[609.4,609.9,609,609.6],[609.6,610.6,609.5,610.3],[610.3,610.7,609.3,609.5],[609.5,609.6,608.7,608.9]]);
+  const Q=[
+    {m:'Candles',q:'The circled candle forms at resistance. What is the best reading?',chart:()=>({candles:star,n:7,levels:[{p:610,label:'Resistance 610'}],rings:[4]}),
+     o:['Buyers are in control: strong bullish momentum','Sellers rejected the high: possible bearish reversal','Pure indecision, no information','A continuation signal: buy calls now'],a:1,
+     e:'The long upper wick shows buyers pushed above resistance and were driven back. The close near the low confirms it. It is a warning, and the next candle supplies the trigger.'},
+    {m:'Candles',q:'At 9:47 a 5-minute bar is trading above a resistance level and the bar ends at 9:50. What is the disciplined move?',
+     o:['Buy calls immediately before price runs away','Wait for the bar to close above the level','Buy puts because breakouts usually fail','Ignore the level and watch only volume'],a:1,
+     e:'An open bar can still turn into a rejection wick. The close is the information, and acting on closed bars stops you paying theta for a guess.'},
+    {m:'Structure',q:'An uptrend printed higher highs and higher lows. Now look at the right side of the chart. What has happened?',chart:()=>({candles:brk,levels:[{p:105.5,label:'105.50',side:'r',dy:15}]}),
+     o:['Nothing. Pullbacks are normal inside an uptrend','The structure broke: a lower high, then a close under the last higher low','The trend is accelerating, so the dip is a buying chance','It is impossible to tell without volume'],a:1,
+     e:'The lower high came first, then price closed under the last higher low at 105.50. The pattern of higher lows ended, so calls on dips are no longer the default.'},
+    {m:'Structure',q:'In a confirmed uptrend, where do you look to buy calls?',
+     o:['On the first candle to a new high, as fast as possible','On a pullback toward the latest higher low, after a bullish candle closes','Only at the lowest price of the day','Right after a lower high forms'],a:1,
+     e:'Pullbacks to a higher low give a close stop and a better reward-to-risk than chasing highs. A lower high is a warning sign, not an entry.'},
+    {m:'Levels',q:'Price opens inside the premarket range and trades sideways for 30 minutes. Then a 5-minute candle with a big body closes above the high of that 30-minute range. What setup is starting?',
+     o:['Failed breakout','Opening range breakout','Trend pullback','Range chop with no trade'],a:1,
+     e:'The first 30 minutes define the opening range. A strong close outside it starts the opening range breakout idea, which you can enter on a retest.'},
+    {m:'Levels',q:'Why do prior day highs and lows often cause reactions?',
+     o:['Exchanges halt trading there','Many traders place stops and breakout orders just beyond them','They are legally required support levels','Options contracts expire there'],a:1,
+     e:'Orders cluster where many traders are watching. That crowding is why price stalls, spikes or reverses at the same spots.'},
+    {m:'Setups',q:'The circled candle closed back under 610 after the previous bar closed above it. What is the setup, and what is the trade?',chart:()=>({candles:fail,n:8,levels:[{p:610,label:'Resistance 610'}],rings:[5]}),
+     o:['Breakout and retest: buy calls','Failed breakout: buy puts after price breaks the failure candle low','Trend pullback: buy calls','No setup: wait for volume'],a:1,
+     e:'A close back inside the range traps the breakout buyers. A break under the failure candle low is the trigger for puts, with the stop above the fake-out high.'},
+    {m:'Setups',q:'In a breakout and retest long, where does the stop belong?',
+     o:['Just under the retest low, where the flipped level has failed','Under the breakout candle close','At 50 percent of the premium paid','At the opening price of the day'],a:0,
+     e:'If price falls back under the retest low, the old resistance did not become support, so the idea is wrong. A premium percentage ignores the chart.'},
+    {m:'Options',q:'Your stop is 1.0 point away, delta is 0.5, and you accept a $100 max loss. Ignoring slippage, how many contracts fit?',
+     o:['1','2','4','5'],a:1,
+     e:'Loss per contract is about 0.5 x 1.0 x 100 = $50. Divide $100 by $50 and you get 2 contracts.'},
+    {m:'Options',q:'Where should a day trader decide the stop for an options trade?',
+     o:['On the stock chart, at the level where the idea fails','As a fixed 50 percent loss on the option','At the price the option was bought','Wherever the broker suggests'],a:0,
+     e:'The chart tells you when the thesis is wrong. Contract count is then chosen so that exit costs what you planned.'},
+    {m:'Risk',q:'You took two losses today, both by your rules. A third setup only marginally meets the checklist. What now?',
+     o:['Take it at double size to recover','Take it at normal size since it mostly qualifies','Stop for the day, as your loss limit says','Switch tickers and trade without a plan'],a:2,
+     e:'A daily loss limit exists for exactly this moment. Marginal setups after losses are where emotion replaces process.'},
+    {m:'Risk',q:'With a 2 to 1 reward-to-risk, what win rate breaks even before costs?',
+     o:['25%','33%','50%','67%'],a:1,
+     e:'Break-even win rate is 1 divided by (1 + reward-to-risk). At 2 to 1 that is 1/3, about 33%.'}
+  ];
+  const host=$('#quiz');let qi=0,ans=[],draw=null;
+  REG.push(()=>{if(draw)draw();});
+  function qdraw(q){
+    const c=$('#qchart');if(!q.chart){c.remove();draw=null;return;}
+    draw=()=>{const cfg=q.chart(),r=span(cfg.candles,(cfg.levels||[]).map(l=>l.p),.14);plot(c,{...r,...cfg,alt:'Quiz chart'});};draw();
+  }
+  function ask(){
+    const q=Q[qi];
+    host.innerHTML=`<div class="qmeta"><span>${q.m.toUpperCase()}</span><span>Question ${qi+1} of ${Q.length}</span></div><div class="qtext">${q.q}</div><div id="qchart" class="chart"></div><div class="qopts">${q.o.map((t,i)=>`<button type="button" class="qopt" data-i="${i}">${t}</button>`).join('')}</div><div id="qfb"></div>`;
+    qdraw(q);
+    $$('.qopt',host).forEach(b=>b.addEventListener('click',()=>pick(+b.dataset.i)));
+  }
+  function pick(i){
+    const q=Q[qi];ans[qi]=i;
+    $$('.qopt',host).forEach((b,k)=>{b.disabled=true;if(k===q.a)b.classList.add('right');else if(k===i)b.classList.add('wrong');});
+    $('#qfb').innerHTML=`<div class="qexp"><b>${i===q.a?'Correct.':'Not quite.'}</b> ${q.e}</div><div class="controls"><button class="btn primary" id="qnext" type="button">${qi===Q.length-1?'See results':'Next question'}</button></div>`;
+    $('#qnext').addEventListener('click',()=>{if(qi===Q.length-1)results();else{qi++;ask();}});
+  }
+  function results(){
+    draw=null;
+    const mods=[...new Set(Q.map(q=>q.m))],tot=ans.filter((a,i)=>a===Q[i].a).length;
+    const by=mods.map(m=>{const qs=Q.map((q,i)=>({q,i})).filter(x=>x.q.m===m),ok=qs.filter(x=>ans[x.i]===x.q.a).length;return{m,ok,n:qs.length};});
+    const msg=tot>=10?'Strong result. Pick one setup and paper trade it for twenty trades.':tot>=7?'Solid base. Revisit the modules marked low, then retake.':'Go back through the labs, then retake the quiz.';
+    const miss=Q.map((q,i)=>({q,i})).filter(x=>ans[x.i]!==x.q.a);
+    host.innerHTML=`<div class="qmeta"><span>RESULTS</span><span>${Q.length} questions</span></div><div class="score">${tot} / ${Q.length}</div><p style="margin-top:6px">${msg}</p>
+    <div class="bars">${by.map(b=>`<div class="bar ${b.ok/b.n<.6?'low':''}"><span>${b.m}</span><span class="t"><i style="width:${b.ok/b.n*100}%"></i></span><span>${b.ok}/${b.n}</span></div>`).join('')}</div>
+    ${miss.length?`<div class="lab-title" style="margin-top:20px">Review what you missed</div>`+miss.map(x=>`<div class="qexp" style="margin-top:8px"><b>${x.q.m}:</b> ${x.q.q}<br><b>Answer:</b> ${x.q.o[x.q.a]}. ${x.q.e}</div>`).join(''):'<p style="margin-top:16px">No misses. Nothing to review.</p>'}
+    <div class="controls" style="margin-top:16px"><button class="btn primary" id="retry" type="button">Retake quiz</button></div>`;
+    $('#retry').addEventListener('click',()=>{qi=0;ans=[];ask();});
+    if(window.paDone)window.paDone('m7',true);
+  }
+  ask();
+})();
+
+/* ---------- navigation and progress ---------- */
+(function(){
+  const secs=$$('.module'),pills=$('#pills'),prog=$('#prog');let done={};
+  try{done=JSON.parse(localStorage.getItem('pa-done')||'{}')||{};}catch(e){done={};}
+  pills.innerHTML=secs.map((s,i)=>`<button type="button" class="pill" data-id="${s.id}"><i></i>${i+1}. ${s.dataset.title}</button>`).join('');
+  function paint(){
+    secs.forEach(s=>{
+      $('.pill[data-id="'+s.id+'"]').classList.toggle('done',!!done[s.id]);
+      const b=$('.done-btn[data-done="'+s.id+'"]');if(b){b.setAttribute('aria-pressed',!!done[s.id]);b.textContent=done[s.id]?'Module done':'Mark module done';}
+    });
+    prog.textContent=Object.values(done).filter(Boolean).length+' of '+secs.length+' done';
+  }
+  window.paDone=(id,v)=>{done[id]=v;try{localStorage.setItem('pa-done',JSON.stringify(done));}catch(e){}paint();};
+  $$('.done-btn').forEach(b=>b.addEventListener('click',()=>window.paDone(b.dataset.done,!done[b.dataset.done])));
+  const calm=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  pills.addEventListener('click',e=>{
+    const b=e.target.closest('.pill');if(!b)return;
+    document.getElementById(b.dataset.id).scrollIntoView({behavior:calm?'auto':'smooth',block:'start'});
+  });
+  if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){
+      $$('.pill',pills).forEach(p=>p.setAttribute('aria-current',p.dataset.id===en.target.id));
+      const a=$('.pill[aria-current="true"]',pills);if(a&&pills.scrollWidth>pills.clientWidth)pills.scrollTo({left:a.offsetLeft-16,behavior:'auto'});
+    }});},{rootMargin:'-25% 0px -65% 0px'});
+    secs.forEach(s=>io.observe(s));
+  }
+  paint();
+})();
+</script>
