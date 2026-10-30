@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Price Action Playbook II</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky module rail, then one long page where every module is a live chart lab you click through. */
+:root{
+  --bg:#F2F5F8; --surface:#FFFFFF; --surface-2:#E8EDF2; --ink:#13202C; --ink-2:#506172; --line:#D3DBE3;
+  --accent:#A85F00; --accent-ink:#FFFFFF;
+  --up:#17805F; --dn:#C8402F; --lvl:#A85F00; --zone:rgba(168,95,0,.10); --vwap:#3F6FB5;
+  --f-display:'Bricolage Grotesque','Avenir Next',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0D141B; --surface:#141D26; --surface-2:#1B2733; --ink:#E5EBF1; --ink-2:#9BADBD; --line:#283644;
+  --accent:#F0A43A; --accent-ink:#1A1203; --up:#3CBF98; --dn:#F2705F; --lvl:#F0A43A; --zone:rgba(240,164,58,.12); --vwap:#6FA1E8;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D141B; --surface:#141D26; --surface-2:#1B2733; --ink:#E5EBF1; --ink-2:#9BADBD; --line:#283644;
+  --accent:#F0A43A; --accent-ink:#1A1203; --up:#3CBF98; --dn:#F2705F; --lvl:#F0A43A; --zone:rgba(240,164,58,.12); --vwap:#6FA1E8;
+  color-scheme:dark}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body);padding-block:0 72px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2{font-family:var(--f-display);font-weight:800;letter-spacing:-.02em;line-height:1.08;margin:0;text-wrap:balance}
+p{margin:0}
+button{font-family:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.rail{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 0 8px}
+.rail-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.brand{font:800 17px var(--f-display);letter-spacing:-.01em}
+.prog{font:500 12px var(--f-mono);color:var(--ink-2)}
+.pills{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.pills::-webkit-scrollbar{display:none}
+.pill{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer;display:flex;gap:7px;align-items:center}
+.pill i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.pill.done i{background:var(--up)}
+.pill[aria-current="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.hero{padding:44px 0 12px;max-width:720px}
+.hero h1{font-size:clamp(32px,6.4vw,56px)}
+.hero .lead{margin-top:16px;font-size:17px;color:var(--ink-2)}
+.hero .fine{margin-top:14px;font-size:13px;color:var(--ink-2)}
+.eyebrow{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+
+.module{padding:44px 0 8px;scroll-margin-top:88px}
+.mod-head{max-width:700px}
+.mod-head h2{font-size:clamp(26px,4.6vw,38px)}
+.mod-head .lead{margin-top:12px;color:var(--ink-2);font-size:16px}
+
+.lab{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:18px;min-width:0}
+.lab-title{font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2);margin-bottom:10px}
+.lab>p.hint{color:var(--ink-2);font-size:14px;margin-bottom:10px;max-width:640px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tabs button,.chip,.btn{font:500 13px var(--f-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 13px;cursor:pointer;min-height:34px}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip{display:inline-flex;align-items:center;gap:7px}
+.chip i{width:10px;height:10px;border-radius:50%;background:var(--c,var(--accent));opacity:.35}
+.chip[aria-pressed="true"]{border-color:var(--c,var(--accent));box-shadow:inset 0 0 0 1px var(--c,var(--accent))}
+.chip[aria-pressed="true"] i{opacity:1}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.chart{width:100%;min-width:0}
+.chart svg{display:block;max-width:100%}
+.caption{margin-top:12px;max-width:720px}
+.caption b{font-weight:600}
+.read{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:14px}
+.read div{border-top:2px solid var(--line);padding-top:8px;font-size:14px}
+.read b{display:block;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);margin-bottom:2px}
+.optnote{background:var(--surface-2);border-radius:8px;padding:12px 14px;margin-top:14px;font-size:14px}
+.optnote b{display:block;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin-bottom:2px}
+.controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.dots{display:flex;gap:5px;margin-left:auto}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--accent)}
+
+input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0 4px}
+
+.takeaways{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:22px}
+.takeaways div{border-top:2px solid var(--ink);padding-top:10px;font-size:14px}
+.takeaways b{display:block;font-size:15px;margin-bottom:2px}
+.mod-foot{margin-top:20px;display:flex;justify-content:flex-end}
+.done-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+.done-btn[aria-pressed="true"]{background:var(--up);border-color:var(--up);color:#fff}
+
+/* chart svg */
+.g{stroke:var(--line);stroke-width:1}
+.pt{font:400 10px var(--f-mono);fill:var(--ink-2)}
+.up{fill:var(--up);stroke:var(--up)} .dn{fill:var(--dn);stroke:var(--dn)}
+.wk{stroke-width:1.5;fill:none} .bd{stroke-width:1}
+.lv{stroke:var(--lvl);stroke-width:1.2;stroke-dasharray:5 4;fill:none}
+.lt{font:500 11px var(--f-mono);fill:var(--lvl);paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
+.zone{fill:var(--zone)} .zone.or{fill:color-mix(in srgb,var(--ink) 8%,transparent)}
+.lv.pm{stroke:var(--ink-2)} .lt.pm{fill:var(--ink-2)} .lv.or{stroke:var(--ink)} .lt.or{fill:var(--ink)}
+.lt.e{fill:var(--ink)} .lt.s{fill:var(--dn)} .lt.t{fill:var(--up)} .lt.v{fill:var(--vwap)}
+.vw{stroke:var(--vwap);stroke-width:1.8;fill:none}
+.ln-e{stroke:var(--ink);stroke-width:1.2;stroke-dasharray:2 3} .ln-s{stroke:var(--dn);stroke-width:1.2;stroke-dasharray:6 3} .ln-t{stroke:var(--up);stroke-width:1.2;stroke-dasharray:6 3}
+.mk rect{fill:var(--surface);stroke:var(--line)}
+.mk text{font:500 11px var(--f-body);fill:var(--ink)}
+.mk.e rect{fill:var(--ink);stroke:var(--ink)} .mk.e text{fill:var(--bg)}
+.mk.s rect{fill:var(--dn);stroke:var(--dn)} .mk.s text,.mk.t text{fill:#fff}
+.mk.t rect{fill:var(--up);stroke:var(--up)}
+.ring{fill:none;stroke:var(--accent);stroke-width:2}
+.anat text{font:500 14px var(--f-body);fill:var(--ink)}
+.anat .sub{font:400 12px var(--f-mono);fill:var(--ink-2)}
+.anat[data-focus="body"] .pw,.anat[data-focus="body"] .pc{opacity:.18}
+.anat[data-focus="wicks"] .pb,.anat[data-focus="wicks"] .pc{opacity:.18}
+.anat[data-focus="close"] .pb,.anat[data-focus="close"] .pw{opacity:.18}
+.anat .pc line{stroke:var(--accent);stroke-width:2}
+
+/* calculator */
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.field{margin-bottom:14px}
+.field label{display:flex;justify-content:space-between;gap:8px;font-size:13px}
+.val{font-family:var(--f-mono);font-weight:500}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stat{border-top:2px solid var(--line);padding-top:8px}
+.stat span{display:block;font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+.stat strong{font:800 26px var(--f-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat.bad strong{color:var(--dn)} .stat.good strong{color:var(--up)}
+.warn{margin-top:12px;font-size:14px;padding:10px 12px;border-radius:8px;background:var(--surface-2)}
+.tbl{overflow-x:auto;margin-top:6px}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:500 11px var(--f-mono);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2)}
+
+/* checklist and quiz */
+.check{display:grid;gap:6px}
+.check label{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:14px}
+.check input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.verdict{margin-top:12px;padding:12px 14px;border-radius:8px;font-weight:500;background:var(--surface-2)}
+.verdict.ok{background:var(--up);color:#fff}
+.qmeta{display:flex;justify-content:space-between;font:500 12px var(--f-mono);color:var(--ink-2);margin-bottom:8px}
+.qtext{font-size:17px;font-weight:600;margin-bottom:12px;max-width:680px}
+.qopts{display:grid;gap:8px;margin-top:12px}
+.qopt{text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:10px 12px;font-size:14px;cursor:pointer}
+.qopt:hover:not(:disabled){border-color:var(--ink)}
+.qopt.right{border-color:var(--up);box-shadow:inset 0 0 0 1px var(--up)}
+.qopt.wrong{border-color:var(--dn);box-shadow:inset 0 0 0 1px var(--dn)}
+.qexp{margin-top:12px;padding:12px 14px;background:var(--surface-2);border-radius:8px;font-size:14px}
+.bars{display:grid;gap:8px;margin-top:12px}
+.bar{display:grid;grid-template-columns:110px 1fr 44px;gap:10px;align-items:center;font-size:13px}
+.bar span.t{height:10px;border-radius:5px;background:var(--surface-2);overflow:hidden}
+.bar span.t i{display:block;height:100%;background:var(--up)}
+.bar.low span.t i{background:var(--dn)}
+.score{font:800 44px var(--f-display);letter-spacing:-.03em}
+.fine-end{margin-top:40px;font-size:12px;color:var(--ink-2);max-width:640px}
+
+@media (max-width:720px){.calc{grid-template-columns:1fr}.bar{grid-template-columns:84px 1fr 40px}}
+@media (prefers-reduced-motion:no-preference){.pill,.tabs button,.chip,.qopt{transition:background .15s,border-color .15s}}
+</style>
+</head>
+<body>
+<style>
+.otl-nav{background:#0f1b26;color:#e8eef4;font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;border-bottom:1px solid #1c2c3b}
+.otl-in{max-width:1140px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 20px;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.otl-nav a{color:inherit;text-decoration:none;padding:8px 0;border-bottom:2px solid transparent}
+.otl-nav a:hover{border-bottom-color:#7f94a8}
+.otl-nav a[aria-current="page"]{border-bottom-color:#f0a43a}
+.otl-nav a:focus-visible{outline:2px solid #f0a43a;outline-offset:2px}
+.otl-brand{font-weight:700;margin-right:auto}
+</style><nav class="otl-nav" aria-label="Site"><div class="otl-in"><a class="otl-brand" href="../../index.html">Options Trading Lab</a><a href="../../learning/index.html">Learning</a><a href="../../learning/part-2/index.html" aria-current="page">Learning II</a><a href="../../checklist/index.html">Checklist</a><a href="../../ledger/index.html">Ledger</a></div></nav>
+<div class="wrap">
+<nav class="rail" aria-label="Modules">
+  <div class="rail-top"><span class="brand">Price Action Playbook II</span><span class="prog" id="prog">0 of 7 done</span></div>
+  <div class="pills" id="pills"></div>
+</nav>
+
+<header class="hero">
+  <p class="eyebrow">Part 2 of the Playbook</p>
+  <h1>Entries get you in. Management gets you paid.</h1>
+  <p class="lead">Six more labs on the parts that decide results after you click buy: filters, timeframes, exits, option Greeks, day types and expectancy. A quiz at the end checks what stuck.</p>
+  <p class="fine">All charts use made-up, SPY-style prices built for teaching. Educational only, not financial advice. Finish Part 1 first if the setups are new to you.</p>
+</header>
+
+<main>
+
+<section class="module" id="m1" data-title="Filters">
+  <div class="mod-head">
+    <p class="eyebrow">Module 1 of 7</p>
+    <h2>VWAP and volume decide which signals to trust</h2>
+    <p class="lead">A setup at a good level can still fail. Two cheap filters remove many of those: which side of VWAP price is on, and whether the breakout candle had real volume behind it.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">VWAP: three ways price treats it (blue line)</div>
+    <div class="tabs" id="vw-tabs"></div>
+    <div id="vw" class="chart"></div>
+    <p class="caption" id="vw-cap"></p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Same breakout, different volume</div>
+    <div class="tabs" id="vol-tabs"></div>
+    <div id="vol" class="chart"></div>
+    <div id="volb" class="chart"></div>
+    <p class="caption" id="vol-cap"></p>
+  </div>
+  <div class="takeaways">
+    <div><b>Side of VWAP is the bias</b>Calls mostly when price is above and VWAP is rising. Puts mostly when it is below and falling.</div>
+    <div><b>Reclaims and rejections</b>A close back across VWAP that holds is a signal. A poke that closes back is a warning.</div>
+    <div><b>Volume proves the break</b>Compare the breakout bar to the recent average. About 1.5 times or more is a good working rule.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m1" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m2" data-title="Timeframes">
+  <div class="mod-head">
+    <p class="eyebrow">Module 2 of 7</p>
+    <h2>Zoom out for the where, zoom in for the when</h2>
+    <p class="lead">Levels that matter come from the 1-hour chart. Entries come from 5-minute candles reacting at those levels. Flip between the two views.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Top-down view of one level</div>
+    <div class="tabs" id="tf-tabs"></div>
+    <div id="tf" class="chart"></div>
+    <p class="caption" id="tf-cap"></p>
+  </div>
+  <div class="takeaways">
+    <div><b>Mark levels on the 1-hour</b>Swing highs and lows from the last several days carry more weight than a 5-minute wiggle.</div>
+    <div><b>Enter on the 5-minute</b>Wait for a closed candle that reacts at the zone. The zone gives the place, the candle gives the timing.</div>
+    <div><b>Stops use the small chart</b>The 5-minute swing gives a tight stop. The 1-hour level gives a realistic target.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m2" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m3" data-title="Management">
+  <div class="mod-head">
+    <p class="eyebrow">Module 3 of 7</p>
+    <h2>How you exit decides the result</h2>
+    <p class="lead">Take the same entry and the same price path, and three exit habits give three different results. Pick a path and an exit style, then compare in R, where 1R is the amount you risked.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Same entry, different exits</div>
+    <div class="tabs" id="mg-path"></div>
+    <div class="tabs" id="mg-style"></div>
+    <div id="mg" class="chart"></div>
+    <div class="tbl"><table id="mg-table"></table></div>
+    <p class="caption" id="mg-cap"></p>
+  </div>
+  <div class="takeaways">
+    <div><b>Plan the exit first</b>Know the stop, the first target and the trailing rule before you enter.</div>
+    <div><b>Scaling smooths the ride</b>Selling half at 1R banks something and lets the stop move to entry. You give up some of the biggest winners.</div>
+    <div><b>No plan is a plan to lose</b>Holding through your stop turns a 1R loss into a bigger one.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m3" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m4" data-title="Greeks">
+  <div class="mod-head">
+    <p class="eyebrow">Module 4 of 7</p>
+    <h2>What the option does while you wait</h2>
+    <p class="lead">A day-trade option is a bet on direction against a clock. Move the sliders on an at-the-money call (strike 600) and watch price, delta, gamma and time decay respond.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">At-the-money call, strike 600</div>
+    <div class="calc">
+      <div>
+        <div class="field"><label for="g-move">Stock move from 600 <span class="val" id="v-move"></span></label><input type="range" id="g-move" min="-4" max="4" step="0.1" value="0"></div>
+        <div class="field"><label for="g-hrs">Hours left in the session <span class="val" id="v-hrs"></span></label><input type="range" id="g-hrs" min="0.25" max="6.5" step="0.25" value="3.5"></div>
+        <div class="field"><label for="g-iv">Implied volatility, yearly <span class="val" id="v-iv"></span></label><input type="range" id="g-iv" min="10" max="40" step="1" value="18"></div>
+        <div class="stats" id="g-stats" style="margin-top:16px"></div>
+      </div>
+      <div>
+        <div id="g-chart" class="chart"></div>
+        <p class="caption" id="g-cap" style="margin-top:10px"></p>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px">Prices come from the Black-Scholes model with a 4 percent rate and no dividends. Real quotes differ because of skew and spreads.</p>
+  </div>
+  <div class="takeaways">
+    <div><b>Delta</b>How much the option moves per $1 in the stock. Deeper in the money means a higher delta.</div>
+    <div><b>Gamma</b>How fast delta changes. It peaks for at-the-money options near expiry, which is why 0DTE moves in jumps.</div>
+    <div><b>Theta and IV</b>Time decay speeds up late in the day. A drop in implied volatility, as after news, shrinks the price even when the stock does not move.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m4" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m5" data-title="Day types">
+  <div class="mod-head">
+    <p class="eyebrow">Module 5 of 7</p>
+    <h2>Four kinds of day, four different plans</h2>
+    <p class="lead">The same setup pays on one type of day and bleeds on another. Learn the clues from the first hour and size your day to match.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Full session, about 10 minutes per candle (blue line is VWAP)</div>
+    <div class="tabs" id="dt-tabs"></div>
+    <div id="dt" class="chart"></div>
+    <div class="read" id="dt-read"></div>
+  </div>
+  <div class="takeaways">
+    <div><b>Name the day by 10:30</b>Use the opening range, VWAP crosses and how pullbacks behave.</div>
+    <div><b>Chop is the costliest</b>Theta wins on range days. Fewer trades and smaller size beat forcing setups.</div>
+    <div><b>Event days are their own type</b>CPI, jobs and Fed days can invalidate a normal read. Reduce size or wait for the release.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m5" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m6" data-title="Expectancy">
+  <div class="mod-head">
+    <p class="eyebrow">Module 6 of 7</p>
+    <h2>Measure the edge, then survive the variance</h2>
+    <p class="lead">A positive expectancy can still produce long losing stretches. Set your numbers, then run twenty simulated 12-month runs to see how bumpy an honest edge looks.</p>
+  </div>
+  <div class="lab">
+    <div class="lab-title">Expectancy and simulation</div>
+    <div class="calc">
+      <div>
+        <div class="field"><label for="e-win">Win rate <span class="val" id="v-win"></span></label><input type="range" id="e-win" min="20" max="80" step="1" value="45"></div>
+        <div class="field"><label for="e-aw">Average win, in R <span class="val" id="v-aw"></span></label><input type="range" id="e-aw" min="0.5" max="4" step="0.1" value="2"></div>
+        <div class="field"><label for="e-al">Average loss, in R <span class="val" id="v-al"></span></label><input type="range" id="e-al" min="0.5" max="1.5" step="0.1" value="1"></div>
+        <div class="field"><label for="e-n">Trades per month <span class="val" id="v-n"></span></label><input type="range" id="e-n" min="5" max="60" step="1" value="20"></div>
+        <div class="field"><label for="e-risk">Dollars risked per trade (1R) <span class="val" id="v-risk"></span></label><input type="range" id="e-risk" min="25" max="300" step="5" value="100"></div>
+        <div class="stats" id="e-stats" style="margin-top:16px"></div>
+      </div>
+      <div>
+        <div id="e-chart" class="chart"></div>
+        <div class="controls"><button type="button" class="btn primary" id="e-run">Run 20 new simulations</button></div>
+        <p class="caption" id="e-cap"></p>
+      </div>
+    </div>
+  </div>
+  <div class="lab">
+    <div class="lab-title">What to log on every trade</div>
+    <div class="tbl"><table>
+      <thead><tr><th>Field</th><th>Why it matters</th></tr></thead>
+      <tbody>
+        <tr><td>Setup and level</td><td>Shows which of your setups actually pays</td></tr>
+        <tr><td>Filters: VWAP side, volume ratio</td><td>Tests whether the filters improve your results</td></tr>
+        <tr><td>Entry, stop, target</td><td>Lets you compute planned R before the trade starts</td></tr>
+        <tr><td>Result in R and dollars</td><td>R lets you compare trades of different sizes</td></tr>
+        <tr><td>Followed the checklist? Y or N</td><td>Separates a bad outcome from a bad decision</td></tr>
+        <tr><td>One line on how you felt</td><td>Reveals patterns such as revenge trades after a loss</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  <div class="takeaways">
+    <div><b>Expectancy per trade</b>Win rate times average win, minus loss rate times average loss, all in R.</div>
+    <div><b>Sample size is everything</b>Twenty trades say very little. Judge a setup after at least a hundred.</div>
+    <div><b>Drawdowns are normal</b>Size so that a long losing run does not force you to quit the plan.</div>
+  </div>
+  <div class="mod-foot"><button class="done-btn" data-done="m6" aria-pressed="false">Mark module done</button></div>
+</section>
+
+<section class="module" id="m7" data-title="Quiz">
+  <div class="mod-head">
+    <p class="eyebrow">Module 7 of 7</p>
+    <h2>Check what stuck</h2>
+    <p class="lead">Twelve questions across the six modules. You get feedback after each answer and a breakdown by module at the end.</p>
+  </div>
+  <div class="lab" id="quiz"></div>
+</section>
+
+</main>
+<p class="fine-end">Educational content only, not financial advice. Options can lose their full premium quickly. Check your broker's day-trading rules before you trade.</p>
+</div>
+
+<script>
+/* ---------- core helpers and chart engine ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const f2=n=>n.toFixed(2);
+const REG=[];
+function mount(fn){REG.push(fn);fn();}
+let _rt;addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(()=>REG.forEach(f=>f()),120);});
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const mk=a=>a.map(([o,h,l,c])=>({o,h,l,c}));
+
+function gen(wp,seed,noise){
+  const r=rng(seed),n=wp[wp.length-1].i+1,out=[];let prev=wp[0].p;
+  for(let i=0;i<n;i++){
+    let k=0;while(k<wp.length-2&&wp[k+1].i<i)k++;
+    const a=wp[k],b=wp[k+1],t=Math.min(1,Math.max(0,(i-a.i)/((b.i-a.i)||1)));
+    const c=a.p+(b.p-a.p)*t+(r()-.5)*noise*1.2,o=i===0?wp[0].p:prev;
+    out.push({o,h:Math.max(o,c)+r()*noise*.7,l:Math.min(o,c)-r()*noise*.7,c});prev=c;
+  }
+  wp.forEach(w=>{
+    if(!w.t)return;
+    for(let j=Math.max(0,w.i-3);j<=Math.min(n-1,w.i+3);j++){
+      const cd=out[j];
+      if(w.t==='H'){
+        if(j===w.i){cd.h=w.p;cd.c=Math.min(cd.c,w.p-noise*.3);cd.o=Math.min(cd.o,w.p-noise*.3);}
+        else{cd.h=Math.min(cd.h,w.p-.03);cd.o=Math.min(cd.o,cd.h);cd.c=Math.min(cd.c,cd.h);}
+      }else{
+        if(j===w.i){cd.l=w.p;cd.c=Math.max(cd.c,w.p+noise*.3);cd.o=Math.max(cd.o,w.p+noise*.3);}
+        else{cd.l=Math.max(cd.l,w.p+.03);cd.o=Math.max(cd.o,cd.l);cd.c=Math.max(cd.c,cd.l);}
+      }
+    }
+  });
+  out.forEach(cd=>{cd.h=Math.max(cd.h,cd.o,cd.c);cd.l=Math.min(cd.l,cd.o,cd.c);});
+  return out;
+}
+function span(C,extra,pad){
+  let lo=Infinity,hi=-Infinity;
+  C.forEach(c=>{lo=Math.min(lo,c.l);hi=Math.max(hi,c.h);});
+  (extra||[]).forEach(p=>{lo=Math.min(lo,p);hi=Math.max(hi,p);});
+  const d=(hi-lo)*(pad==null?.12:pad);return{ymin:lo-d,ymax:hi+d};
+}
+
+/* o: candles, n, ymin, ymax, show, zones, levels, lines, rings, marks, times, alt, h */
+function plot(host,o){
+  const W=Math.max(260,host.clientWidth||320),H=o.h||Math.round(Math.min(360,Math.max(230,W*.52)));
+  const L=6,R=46,T=16,B=o.times?22:10,C=o.candles,n=o.n||C.length,lo=o.ymin,hi=o.ymax;
+  const step=(W-L-R)/n,cw=Math.max(2,Math.min(22,step*.62));
+  const y=p=>T+(hi-p)/(hi-lo)*(H-T-B),x=i=>L+step*(i+.5);
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.alt||'Candlestick chart')}">`;
+  for(let k=0;k<=4;k++){
+    const p=lo+(hi-lo)*k/4;
+    s+=`<line class="g" x1="${L}" x2="${W-R}" y1="${y(p)}" y2="${y(p)}"/><text class="pt" x="${W-R+5}" y="${y(p)+3}">${p.toFixed(1)}</text>`;
+  }
+  (o.zones||[]).forEach(z=>{
+    const x0=L+step*z.i0,x1=L+step*(z.i1+1);
+    s+=`<rect class="zone ${z.cls||''}" x="${x0}" y="${y(z.p1)}" width="${x1-x0}" height="${y(z.p0)-y(z.p1)}"/>`;
+    if(z.label)s+=`<text class="lt ${z.cls||''}" x="${x0+4}" y="${y(z.p1)+13}">${esc(z.label)}</text>`;
+  });
+  (o.levels||[]).forEach(v=>{
+    const x0=v.from!=null?x(v.from):L;
+    s+=`<line class="${v.line||'lv'} ${v.cls||''}" x1="${x0}" x2="${W-R}" y1="${y(v.p)}" y2="${y(v.p)}"/>`;
+    if(v.label){
+      const right=v.side==='r';
+      s+=`<text class="lt ${v.cls||''}" x="${right?W-R-4:x0+4}" y="${y(v.p)+(v.dy!=null?v.dy:-5)}" text-anchor="${right?'end':'start'}">${esc(v.label)}</text>`;
+    }
+  });
+  (o.lines||[]).forEach(l=>{
+    s+=`<polyline class="${l.cls||'vw'}" points="${l.pts.filter(q=>o.show==null||q.i<o.show).map(q=>x(q.i)+','+y(q.p)).join(' ')}"/>`;
+  });
+  C.forEach((c,i)=>{
+    if(o.show!=null&&i>=o.show)return;
+    const cl=c.c>=c.o?'up':'dn',yo=y(c.o),yc=y(c.c);
+    s+=`<g class="${cl}"><line class="wk" x1="${x(i)}" x2="${x(i)}" y1="${y(c.h)}" y2="${y(c.l)}"/><rect class="bd" x="${x(i)-cw/2}" y="${Math.min(yo,yc)}" width="${cw}" height="${Math.max(1.5,Math.abs(yo-yc))}" rx="1"/></g>`;
+  });
+  (o.rings||[]).forEach(i=>{
+    if(o.show!=null&&i>=o.show)return;
+    const c=C[i];s+=`<ellipse class="ring" cx="${x(i)}" cy="${(y(c.h)+y(c.l))/2}" rx="${Math.max(12,cw)}" ry="${Math.abs(y(c.h)-y(c.l))/2+8}"/>`;
+  });
+  (o.marks||[]).forEach(m=>{
+    if(o.show!=null&&m.i>=o.show)return;
+    const c=C[m.i],pw=m.label.length*6.4+14,ph=19,cx=Math.min(Math.max(x(m.i),L+pw/2),W-R-pw/2);
+    const above=m.pos!=='b',yy=above?y(c.h):y(c.l),py=above?yy-10-ph:yy+10;
+    s+=`<g class="mk ${m.cls||''}"><line class="g" x1="${x(m.i)}" x2="${x(m.i)}" y1="${above?yy-3:yy+3}" y2="${above?yy-10:yy+10}"/><rect x="${cx-pw/2}" y="${py}" width="${pw}" height="${ph}" rx="9"/><text x="${cx}" y="${py+13}" text-anchor="middle">${esc(m.label)}</text></g>`;
+  });
+  (o.times||[]).forEach(t=>{s+=`<text class="pt" x="${x(t.i)}" y="${H-6}" text-anchor="middle">${t.label}</text>`;});
+  host.innerHTML=s+'</svg>';
+}
+function tabs(host,items,start,cb){
+  host.innerHTML=items.map((t,i)=>`<button type="button" aria-pressed="${i===start}" data-i="${i}">${esc(t)}</button>`).join('');
+  host.addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    $$('button',host).forEach(x=>x.setAttribute('aria-pressed',x===b));cb(+b.dataset.i);
+  });
+}
+
+/* ---------- Part 2 shared helpers ---------- */
+function vwapPts(C,V){let pv=0,vv=0;return C.map((c,i)=>{pv+=(c.h+c.l+c.c)/3*V[i];vv+=V[i];return{i,p:pv/vv};});}
+function vols(n,seed,base,spikes){const r=rng(seed);return Array.from({length:n},(_,i)=>Math.round(base*(.7+r()*.6)*(spikes&&spikes[i]?spikes[i]:1)));}
+function volBars(host,V,hi,avg){
+  const W=Math.max(260,host.clientWidth||320),H=70,L=6,R=46,n=V.length,step=(W-L-R)/n,bw=Math.max(2,Math.min(22,step*.62)),mx=Math.max(...V,avg*1.1);
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Volume bars with the average volume line">`;
+  const ya=H-4-(avg/mx)*(H-14);
+  s+=`<line class="lv" x1="${L}" x2="${W-R}" y1="${ya}" y2="${ya}"/><text class="pt" x="${W-R+5}" y="${ya+3}">avg</text>`;
+  V.forEach((v,i)=>{const h=(v/mx)*(H-14),x=L+step*(i+.5)-bw/2;
+    s+=`<rect x="${x}" y="${H-4-h}" width="${bw}" height="${h}" rx="1" style="fill:${i===hi?'var(--accent)':'var(--line)'}"/>`;});
+  host.innerHTML=s+'</svg>';
+}
+function fromCloses(cl,w,start){
+  let prev=start;return cl.map(c=>{const o=prev;prev=c;return{o,h:Math.max(o,c)+w,l:Math.min(o,c)-w,c};});
+}
+
+/* ---------- Module 1: VWAP scenarios ---------- */
+(function(){
+  const S=[
+    {n:'Trend above VWAP',C:gen([{i:0,p:600,t:'L'},{i:7,p:603,t:'H'},{i:11,p:601.8,t:'L'},{i:19,p:605.5,t:'H'},{i:23,p:604.2,t:'L'},{i:29,p:607.5}],21,.35),mark:[{i:11,label:'Pullback holds VWAP',pos:'b',cls:'e'}],
+     cap:'Price stays above a rising VWAP and every dip is bought near it. This is where call setups have the wind at their back.'},
+    {n:'Reclaim',C:gen([{i:0,p:604,t:'H'},{i:8,p:601,t:'L'},{i:13,p:602.4,t:'H'},{i:17,p:603.8},{i:21,p:603,t:'L'},{i:29,p:606.5}],5,.35),mark:[{i:17,label:'Closes back above',pos:'a',cls:'e'},{i:21,label:'Retest holds',pos:'b',cls:'e'}],
+     cap:'Price sat under VWAP, closed back above it, then retested it from above and held. A reclaim plus a held retest is a cleaner call signal than the first poke.'},
+    {n:'Chop around it',C:gen([{i:0,p:603},{i:4,p:604.3},{i:8,p:602.4},{i:12,p:604},{i:16,p:602.6},{i:20,p:603.8},{i:24,p:602.9},{i:29,p:603.4}],8,.3),mark:[{i:12,label:'Crosses again',pos:'a'}],
+     cap:'Price crosses VWAP back and forth and VWAP goes flat. There is no side to lean on, so setups here have the lowest odds. Stand aside or cut size.'}
+  ];
+  const host=$('#vw'),cap=$('#vw-cap');let cur=0;
+  function draw(){
+    const s=S[cur],V=vols(s.C.length,cur+3,100),vw=vwapPts(s.C,V),r=span(s.C,vw.map(q=>q.p),.14);
+    plot(host,{candles:s.C,...r,lines:[{pts:vw,cls:'vw'}],marks:s.mark,alt:s.n+' versus VWAP'});cap.textContent=s.cap;
+  }
+  tabs($('#vw-tabs'),S.map(s=>s.n),0,i=>{cur=i;draw();});mount(draw);
+})();
+
+/* ---------- Module 1: volume on a breakout ---------- */
+(function(){
+  const base=[{i:0,p:604},{i:5,p:605.2},{i:9,p:604.6},{i:13,p:605.4},{i:15,p:605.2},{i:16,p:607.1},{i:19,p:608},{i:23,p:607.6}];
+  const mkC=(seed)=>gen(base,seed,.3);
+  const S=[
+    {n:'Strong volume',seed:11,spike:2.4,cap:'The breakout bar printed about 2.4 times the average volume. Many participants agree, so a hold above the level is likelier.'},
+    {n:'Weak volume',seed:11,spike:.8,cap:'Same price move, but volume was below average. Few participants joined, so a quick snap back under the level is likelier. Wait for more evidence or skip.'}
+  ];
+  const host=$('#vol'),hostb=$('#volb'),cap=$('#vol-cap');let cur=0;
+  function draw(){
+    const s=S[cur],C=mkC(s.seed);
+    const hi=16,V=vols(C.length,7,100,{[hi]:s.spike}),avg=V.reduce((a,b,i)=>i===hi?a:a+b,0)/(V.length-1);
+    const r=span(C,[605.5],.14);
+    plot(host,{candles:C,...r,levels:[{p:605.5,label:'Resistance 605.5'}],marks:[{i:hi,label:'Breakout bar',pos:'a',cls:'e'}],alt:'Breakout with '+s.n.toLowerCase()});
+    volBars(hostb,V,hi,avg);cap.textContent=s.cap;
+  }
+  tabs($('#vol-tabs'),S.map(s=>s.n),0,i=>{cur=i;draw();});mount(draw);
+})();
+
+/* ---------- Module 2: timeframes ---------- */
+(function(){
+  const H1=gen([{i:0,p:596,t:'L'},{i:6,p:605,t:'H'},{i:11,p:600,t:'L'},{i:17,p:609.9,t:'H'},{i:23,p:603,t:'L'},{i:29,p:609.7,t:'H'},{i:34,p:607}],9,.7);
+  const M5=gen([{i:0,p:605,t:'L'},{i:6,p:608.4},{i:10,p:609.55,t:'H'},{i:13,p:608.3,t:'L'},{i:17,p:609.7},{i:21,p:610.6,t:'H'},{i:24,p:610},{i:29,p:612}],4,.22);
+  const items=[
+    {n:'1-hour: find the level',cap:'Two separate swing highs stopped near 609.8. That shared ceiling is the zone to plan around. You draw it here, not on the 5-minute chart.'},
+    {n:'5-minute: time the entry',cap:'Back on the small chart, price rejected the zone once, pulled back, then closed above it and held on the retest. The zone gave the place; the closed candle gave the timing.'}
+  ];
+  const host=$('#tf'),cap=$('#tf-cap');let cur=0;
+  function draw(){
+    if(cur===0){
+      const r=span(H1,[609.8],.12);
+      plot(host,{candles:H1,...r,zones:[{i0:0,i1:H1.length-1,p0:609.3,p1:610.2,label:'Zone 609.3–610.2'}],marks:[{i:17,label:'High 1',pos:'a'},{i:29,label:'High 2',pos:'a'}],times:[{i:0,label:'Mon'},{i:12,label:'Tue'},{i:24,label:'Wed'}],alt:'Hourly chart with a resistance zone'});
+    }else{
+      const r=span(M5,[609.3,610.2],.12);
+      plot(host,{candles:M5,...r,zones:[{i0:0,i1:M5.length-1,p0:609.3,p1:610.2,label:'Hourly zone'}],marks:[{i:10,label:'Rejected',pos:'a'},{i:21,label:'Retest holds',pos:'b',cls:'e'}],times:[{i:0,label:'9:30'},{i:12,label:'10:30'},{i:24,label:'11:30'}],alt:'Five-minute chart reacting at the hourly zone'});
+    }
+    cap.textContent=items[cur].cap;
+  }
+  tabs($('#tf-tabs'),items.map(s=>s.n),0,i=>{cur=i;draw();});mount(draw);
+})();
+
+/* ---------- Module 3: trade management ---------- */
+(function(){
+  const E=600,STOP=599,T1=601,T2=602;
+  const P=[
+    {n:'Clean winner',cl:[600.4,600.9,601.4,601.9,602.3,602.1,601.9,601.8,601.7,601.8],cap:'A tidy move to the target followed by a small fade.'},
+    {n:'Pop and fade',cl:[600.4,600.8,601.1,600.9,600.5,600.1,599.6,599.2,598.5,598.1],cap:'It reached 1R, then gave everything back and kept falling.'},
+    {n:'Straight down',cl:[599.7,599.4,599.1,598.6,598.3,598,597.6,597.5,597.3,597.4],cap:'Wrong from the start. The only question is how much you lose.'},
+    {n:'Big runner',cl:[600.5,601.2,601.9,602.5,603.1,603.6,603.3,603.9,604.4,604.2],cap:'A trend move that keeps going well past the first target.'}
+  ];
+  const ST=['Fixed target (2R)','Scale out at 1R','Hold with no stop'];
+  function sim(C,k){
+    const last=C[C.length-1].c;
+    if(k===0){for(let i=0;i<C.length;i++){if(C[i].l<=STOP)return{r:-1,i};if(C[i].h>=T2)return{r:2,i};}return{r:last-E,i:C.length-1};}
+    if(k===1){let st=0,bi=-1;for(let i=0;i<C.length;i++){
+      if(st===0){if(C[i].l<=STOP)return{r:-1,i};if(C[i].h>=T1){st=1;bi=i;}}
+      else{if(C[i].l<=E)return{r:.5,i,b:bi};if(C[i].h>=T2)return{r:1.5,i,b:bi};}}
+      return{r:st?.5+.5*(last-E):last-E,i:C.length-1,b:bi};}
+    return{r:last-E,i:C.length-1};
+  }
+  const fmt=r=>(r>0?'+':'')+r.toFixed(1)+'R';
+  const host=$('#mg'),tbl=$('#mg-table'),cap=$('#mg-cap');let pi=0,si=0;
+  function draw(){
+    const C=fromCloses(P[pi].cl,.2,E),res=ST.map((_,k)=>sim(C,k)),me=res[si];
+    const r=span(C,[STOP,T2,E],.12);
+    const marks=[{i:me.i,label:'Exit '+fmt(me.r),pos:me.r>=0?'a':'b',cls:me.r>=0?'t':'s'}];
+    if(me.b!=null&&me.b!==me.i)marks.push({i:me.b,label:'Sell half',pos:'a',cls:'e'});
+    plot(host,{candles:C,...r,n:C.length+1,levels:[{p:E,label:'Entry 600',line:'lv or'},{p:STOP,label:'Stop 599 (−1R)'},{p:T2,label:'Target 602 (+2R)'}],marks,alt:'Trade path with entry, stop and target'});
+    tbl.innerHTML='<thead><tr><th>Exit style</th><th>Result</th></tr></thead><tbody>'+ST.map((s,k)=>`<tr${k===si?' style="font-weight:600"':''}><td>${s}${k===si?' (shown)':''}</td><td>${fmt(res[k].r)}</td></tr>`).join('')+'</tbody>';
+    cap.textContent=P[pi].cap+' Fixed target and scaling use a hard stop; holding with no stop takes whatever the chart gives.';
+  }
+  tabs($('#mg-path'),P.map(p=>p.n),0,i=>{pi=i;draw();});
+  tabs($('#mg-style'),ST,0,i=>{si=i;draw();});mount(draw);
+})();
+
+/* ---------- Module 4: option Greeks ---------- */
+(function(){
+  const N=x=>{const t=1/(1+.2316419*Math.abs(x)),d=.3989423*Math.exp(-x*x/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return x>0?1-p:p;};
+  const pdf=x=>.3989423*Math.exp(-x*x/2);
+  const Tof=h=>h/(6.5*252);
+  function bs(S,K,h,iv){
+    const T=Tof(h),s=iv/100,r=.04;
+    if(T<=0)return{p:Math.max(S-K,0),d:S>K?1:0,g:0};
+    const d1=(Math.log(S/K)+(r+s*s/2)*T)/(s*Math.sqrt(T)),d2=d1-s*Math.sqrt(T);
+    return{p:S*N(d1)-K*Math.exp(-r*T)*N(d2),d:N(d1),g:pdf(d1)/(S*s*Math.sqrt(T))};
+  }
+  const mv=$('#g-move'),hr=$('#g-hrs'),iv=$('#g-iv'),host=$('#g-chart'),st=$('#g-stats'),cap=$('#g-cap');
+  function draw(){
+    const m=+mv.value,h=+hr.value,v=+iv.value,S=600+m;
+    $('#v-move').textContent=(m>=0?'+':'')+m.toFixed(1);$('#v-hrs').textContent=h.toFixed(2)+' h';$('#v-iv').textContent=v+'%';
+    const o=bs(S,600,h,v),later=bs(S,600,Math.max(h-1,.02),v),up=bs(S,600,h,v+1);
+    const decay=(o.p-later.p)*100,vega=(up.p-o.p)*100;
+    st.innerHTML=[['Option price','$'+(o.p*100).toFixed(0)+' per contract',''],['Delta',o.d.toFixed(2),''],['Gamma (per $1)',o.g.toFixed(3),''],['Next hour of decay','−$'+decay.toFixed(0),'bad'],['Value of +1 IV point','$'+vega.toFixed(1),'']]
+      .map(a=>`<div class="stat ${a[2]}"><span>${a[0]}</span><strong style="font-size:20px">${a[1]}</strong></div>`).join('');
+    const W=Math.max(260,host.clientWidth||320),Hh=Math.round(Math.min(300,Math.max(210,W*.55))),L=34,R=10,T=12,B=22;
+    const xs=[],a=[],b=[];for(let k=-40;k<=40;k++){const mm=k/10;xs.push(mm);a.push(bs(600+mm,600,h,v).p*100);b.push(bs(600+mm,600,Math.max(h-1,.02),v).p*100);}
+    const ymax=Math.max(...a)*1.08,X=mm=>L+(mm+4)/8*(W-L-R),Y=p=>T+(1-p/ymax)*(Hh-T-B);
+    const line=(arr,sty)=>`<polyline fill="none" style="${sty}" points="${xs.map((mm,k)=>X(mm)+','+Y(arr[k])).join(' ')}"/>`;
+    let s=`<svg width="${W}" height="${Hh}" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Option price versus stock move, now and one hour later">`;
+    for(let k=0;k<=4;k++){const p=ymax*k/4;s+=`<line class="g" x1="${L}" x2="${W-R}" y1="${Y(p)}" y2="${Y(p)}"/><text class="pt" x="${L-4}" y="${Y(p)+3}" text-anchor="end">$${p.toFixed(0)}</text>`;}
+    [-4,-2,0,2,4].forEach(mm=>{s+=`<text class="pt" x="${X(mm)}" y="${Hh-6}" text-anchor="middle">${mm>0?'+':''}${mm}</text>`;});
+    s+=line(b,'stroke:var(--ink-2);stroke-width:1.6;stroke-dasharray:5 4')+line(a,'stroke:var(--accent);stroke-width:2.2')+`<circle cx="${X(m)}" cy="${Y(o.p*100)}" r="5" style="fill:var(--accent);stroke:var(--surface);stroke-width:2"/>`;
+    s+=`<text class="lt" x="${L+6}" y="${T+10}" style="fill:var(--accent)">Now</text><text class="lt" x="${L+46}" y="${T+10}">Dashed: one hour later</text></svg>`;
+    host.innerHTML=s;
+    cap.textContent=`A $1 move changes this option by about $${(o.d*100).toFixed(0)}, and delta itself shifts by ${(o.g*100).toFixed(0)} cents per $1 (gamma). If the stock sits still, the next hour costs about $${decay.toFixed(0)}.`;
+  }
+  [mv,hr,iv].forEach(e=>e.addEventListener('input',draw));mount(draw);
+})();
+
+/* ---------- Module 5: day types ---------- */
+(function(){
+  const D=[
+    {n:'Trend day',wp:[{i:0,p:600,t:'L'},{i:3,p:602.2},{i:6,p:601.5,t:'L'},{i:14,p:606.5,t:'H'},{i:18,p:605,t:'L'},{i:27,p:610.5,t:'H'},{i:31,p:609.2,t:'L'},{i:38,p:613}],seed:3,
+     clues:'The opening range breaks early and price never closes back under VWAP. Pullbacks stop near VWAP or the prior swing.',plan:'Take pullback entries in the trend direction. Trail stops under higher lows. Do not fade.',size:'Normal to slightly larger size once the trend is clear.'},
+    {n:'Range day',wp:[{i:0,p:603},{i:5,p:605.2,t:'H'},{i:10,p:602.4,t:'L'},{i:15,p:605,t:'H'},{i:20,p:602.6,t:'L'},{i:26,p:605.1,t:'H'},{i:32,p:602.8,t:'L'},{i:38,p:604}],seed:6,
+     clues:'The opening range holds all morning. VWAP is flat and price crosses it repeatedly. Breakouts fail quickly.',plan:'Trade only the edges with tight stops, or sit out. Skip breakout entries in the middle.',size:'Half size or less, with a lower daily trade limit.'},
+    {n:'Reversal day',wp:[{i:0,p:604,t:'H'},{i:6,p:600.8},{i:12,p:598.5,t:'L'},{i:15,p:600.2},{i:20,p:603.2},{i:26,p:605.8,t:'H'},{i:32,p:605.1,t:'L'},{i:38,p:607.3}],seed:12,
+     clues:'The morning trend gets a hard reversal, VWAP is reclaimed with strong bodies and volume, and the old low does not come back.',plan:'Wait for the VWAP reclaim and the retest. Do not catch the falling knife on the first bounce.',size:'Reduced size until the reclaim is confirmed.'},
+    {n:'Event spike',wp:[{i:0,p:603},{i:5,p:603.4},{i:8,p:603.1},{i:9,p:607.6,t:'H'},{i:12,p:605.2},{i:17,p:601.6,t:'L'},{i:24,p:603.8},{i:31,p:602.9},{i:38,p:603.5}],seed:8,
+     clues:'A scheduled release (CPI, jobs, Fed) produces a sharp spike, then often a full reversal. Spreads and implied volatility are wide.',plan:'Wait until the release has printed and a clear structure forms. Skip the first minutes.',size:'Small size. Expect option prices to deflate when volatility drops.'}
+  ];
+  const host=$('#dt'),read=$('#dt-read');let cur=0;
+  function draw(){
+    const d=D[cur],C=gen(d.wp,d.seed,.45),V=vols(C.length,cur+4,100,cur===3?{9:4,10:3}:{}),vw=vwapPts(C,V),r=span(C,vw.map(q=>q.p),.1);
+    plot(host,{candles:C,...r,lines:[{pts:vw,cls:'vw'}],times:[0,9,18,27,36].map((i,k)=>({i,label:['9:30','11:00','12:30','2:00','3:30'][k]})),alt:d.n+' example session'});
+    read.innerHTML=`<div><b>Clues</b>${d.clues}</div><div><b>Plan</b>${d.plan}</div><div><b>Size</b>${d.size}</div>`;
+  }
+  tabs($('#dt-tabs'),D.map(d=>d.n),0,i=>{cur=i;draw();});mount(draw);
+})();
+
+/* ---------- Module 6: expectancy ---------- */
+(function(){
+  const g=id=>$('#'+id),host=g('e-chart'),stt=g('e-stats'),cap=g('e-cap');let seed=1;
+  const ids=['e-win','e-aw','e-al','e-n','e-risk'];
+  function runs(w,aw,al,n,risk){
+    const out=[];
+    for(let k=0;k<20;k++){const r=rng(seed*1000+k*7+1);let eq=0;const path=[0];
+      for(let t=0;t<n*12;t++){eq+=(r()<w?aw:-al)*risk;path.push(eq);}out.push(path);}
+    return out;
+  }
+  function draw(){
+    const w=+g('e-win').value/100,aw=+g('e-aw').value,al=+g('e-al').value,n=+g('e-n').value,risk=+g('e-risk').value;
+    g('v-win').textContent=(w*100).toFixed(0)+'%';g('v-aw').textContent=aw.toFixed(1)+'R';g('v-al').textContent=al.toFixed(1)+'R';g('v-n').textContent=n;g('v-risk').textContent='$'+risk;
+    const ex=w*aw-(1-w)*al,be=al/(aw+al),R=runs(w,aw,al,n,risk);
+    const fin=R.map(p=>p[p.length-1]),dd=R.map(p=>{let pk=0,m=0;p.forEach(v=>{pk=Math.max(pk,v);m=Math.max(m,pk-v);});return m;});
+    const neg=fin.filter(v=>v<0).length;
+    stt.innerHTML=[['Expectancy per trade',(ex>=0?'+':'')+ex.toFixed(2)+'R',ex>0?'good':'bad'],['Expected per month',(ex>=0?'+$':'−$')+Math.abs(ex*n*risk).toFixed(0),ex>0?'good':'bad'],['Break-even win rate',(be*100).toFixed(0)+'%',''],['Runs ending negative',neg+' of 20',neg>6?'bad':''],['Worst run drawdown','$'+Math.max(...dd).toFixed(0),'bad'],['Best run result','$'+Math.max(...fin).toFixed(0),'']]
+      .map(a=>`<div class="stat ${a[2]}"><span>${a[0]}</span><strong style="font-size:20px">${a[1]}</strong></div>`).join('');
+    const W=Math.max(260,host.clientWidth||320),H=Math.round(Math.min(320,Math.max(220,W*.58))),L=44,Rr=8,T=12,B=22,len=n*12;
+    const all=R.flat().concat([0,ex*risk*len]),lo=Math.min(...all),hi=Math.max(...all),pad=(hi-lo)*.06||10;
+    const X=i=>L+i/len*(W-L-Rr),Y=v=>T+(1-(v-(lo-pad))/(hi-lo+2*pad))*(H-T-B);
+    let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Twenty simulated equity curves over twelve months">`;
+    for(let k=0;k<=4;k++){const v=lo-pad+(hi-lo+2*pad)*k/4;s+=`<line class="g" x1="${L}" x2="${W-Rr}" y1="${Y(v)}" y2="${Y(v)}"/><text class="pt" x="${L-4}" y="${Y(v)+3}" text-anchor="end">$${v.toFixed(0)}</text>`;}
+    s+=`<line class="lv or" x1="${L}" x2="${W-Rr}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+    const stp=Math.max(1,Math.floor(len/120));R.forEach(p=>{const pts=[];for(let i=0;i<=len;i+=stp)pts.push(X(i)+','+Y(p[i]));pts.push(X(len)+','+Y(p[len]));s+=`<polyline fill="none" style="stroke:var(--ink-2);stroke-width:1;opacity:.35" points="${pts.join(' ')}"/>`;});
+    s+=`<line x1="${X(0)}" y1="${Y(0)}" x2="${X(len)}" y2="${Y(ex*risk*len)}" style="stroke:var(--accent);stroke-width:2.4"/>`;
+    s+=`<text class="pt" x="${L}" y="${H-6}">Start</text><text class="pt" x="${W-Rr}" y="${H-6}" text-anchor="end">12 months</text></svg>`;
+    host.innerHTML=s;
+    cap.textContent=ex>0?`Orange is the average path. Grey lines are 20 possible years with the same edge, so luck still moves the result a lot. Try fewer trades or a lower win rate and watch the grey spread widen.`:`With this setup the average path points down. No amount of discipline fixes negative expectancy; change the win rate or the reward-to-risk first.`;
+  }
+  ids.forEach(id=>g(id).addEventListener('input',draw));
+  g('e-run').addEventListener('click',()=>{seed++;draw();});
+  mount(draw);
+})();
+
+/* ---------- Module 7: quiz ---------- */
+(function(){
+  const Q=[
+    {m:'Filters',q:'Price is below a falling VWAP and a setup shows a call entry on a small bounce. What does the filter say?',
+     o:['Take it, the bounce is a signal','Lean toward puts or stand aside, since calls are against the VWAP bias','Double size because the bounce is oversold','VWAP only matters after 2 pm'],a:1,
+     e:'Price below a falling VWAP is a bearish lean. A call against it needs stronger evidence than a small bounce.'},
+    {m:'Filters',q:'A breakout bar closes above resistance on volume well under the recent average. What is the sensible read?',
+     o:['Most reliable breakout type','Weak confirmation: wait for a retest or skip','Volume never matters in options','Buy puts immediately'],a:1,
+     e:'Light volume means few participants joined, so the move is more likely to fail. A held retest adds the missing evidence.'},
+    {m:'Timeframes',q:'Which chart do you use to mark the key resistance zone, and which do you use for the entry candle?',
+     o:['5-minute for both','1-hour for the zone, 5-minute for the entry','1-minute for the zone, daily for the entry','Whichever chart looks most bullish'],a:1,
+     e:'Higher timeframes carry weight for levels. The smaller chart gives a precise trigger and a tight stop.'},
+    {m:'Timeframes',q:'Why is a level seen on both the hourly and the 5-minute chart stronger than one seen only on the 5-minute?',
+     o:['It is easier to draw','More participants watch the higher timeframe, so more orders sit there','5-minute levels never work','It guarantees a bounce'],a:1,
+     e:'More traders and larger orders reference higher-timeframe levels, which makes reactions more likely. Nothing is guaranteed.'},
+    {m:'Management',q:'You bought at 600 with a stop at 599. Price hits 601, then falls back to 600 and keeps dropping. Which plan limits the damage best?',
+     o:['Move the stop down to give it room','Sell half at 601 and move the stop on the rest to entry','Add more contracts at 599.5','Remove the stop and wait'],a:1,
+     e:'Banking part at 1R and moving the stop to entry converts this trade from a full loss to a small gain.'},
+    {m:'Management',q:'Which exit habit most often turns a 1R loss into a 3R loss?',
+     o:['Using a fixed target','Scaling out','Moving or removing the stop when price gets close','Taking profit at 2R'],a:2,
+     e:'A stop that moves away from price is not a stop. Plan it before entering and honor it.'},
+    {m:'Greeks',q:'Late in the session an at-the-money option moves very sharply for a small stock move. Which Greek explains it?',
+     o:['Theta','Vega','Gamma','Rho'],a:2,
+     e:'Gamma is the rate delta changes. It peaks for at-the-money options near expiry, so a small stock move changes delta a lot.'},
+    {m:'Greeks',q:'The stock goes nowhere for an hour on a 0DTE call and the call is worth less. What happened?',
+     o:['Delta decayed','Time decay (theta), and possibly an IV drop, reduced the price','The broker changed the price','Gamma turned negative'],a:1,
+     e:'An option is a wasting asset. With the stock flat, theta and any fall in implied volatility take value out of the premium.'},
+    {m:'Day types',q:'By 10:30 the price has crossed VWAP five times and the opening range still holds. How do you treat the day?',
+     o:['As a trend day: chase breakouts','As a range day: smaller size, fewer trades, trade edges or sit out','As a reversal day: go all in','As an event day: ignore risk limits'],a:1,
+     e:'Repeated VWAP crosses inside the opening range describe chop. Breakouts fail often and theta punishes holding.'},
+    {m:'Day types',q:'CPI prints at 8:30 and the market opens volatile at 9:30. What is a disciplined approach?',
+     o:['Trade the first spike with big size','Wait for structure to form after the open and use smaller size','Skip stops since moves are fast','Buy the cheapest far out-of-the-money contracts'],a:1,
+     e:'Event days widen spreads and change implied volatility. Waiting for structure and cutting size protects you from the noise.'},
+    {m:'Expectancy',q:'A strategy wins 40% of the time with an average win of 2R and an average loss of 1R. What is the expectancy per trade?',
+     o:['-0.2R','0R','+0.2R','+0.8R'],a:2,
+     e:'0.40 × 2 − 0.60 × 1 = 0.8 − 0.6 = +0.2R per trade.'},
+    {m:'Expectancy',q:'You have taken 15 trades with a 60% win rate on a new setup. What is the most accurate conclusion?',
+     o:['The setup has a proven edge','Too few trades to know: keep logging until you have roughly 100','The setup is broken','You should double size'],a:1,
+     e:'Small samples are dominated by luck. Judging an edge needs many trades with the rules applied consistently.'}
+  ];
+  const host=$('#quiz');let qi=0,ans=[],draw=null;
+  REG.push(()=>{if(draw)draw();});
+  function qdraw(q){
+    const c=$('#qchart');if(!q.chart){c.remove();draw=null;return;}
+    draw=()=>{const cfg=q.chart(),r=span(cfg.candles,(cfg.levels||[]).map(l=>l.p),.14);plot(c,{...r,...cfg,alt:'Quiz chart'});};draw();
+  }
+  function ask(){
+    const q=Q[qi];
+    host.innerHTML=`<div class="qmeta"><span>${q.m.toUpperCase()}</span><span>Question ${qi+1} of ${Q.length}</span></div><div class="qtext">${q.q}</div><div id="qchart" class="chart"></div><div class="qopts">${q.o.map((t,i)=>`<button type="button" class="qopt" data-i="${i}">${t}</button>`).join('')}</div><div id="qfb"></div>`;
+    qdraw(q);
+    $$('.qopt',host).forEach(b=>b.addEventListener('click',()=>pick(+b.dataset.i)));
+  }
+  function pick(i){
+    const q=Q[qi];ans[qi]=i;
+    $$('.qopt',host).forEach((b,k)=>{b.disabled=true;if(k===q.a)b.classList.add('right');else if(k===i)b.classList.add('wrong');});
+    $('#qfb').innerHTML=`<div class="qexp"><b>${i===q.a?'Correct.':'Not quite.'}</b> ${q.e}</div><div class="controls"><button class="btn primary" id="qnext" type="button">${qi===Q.length-1?'See results':'Next question'}</button></div>`;
+    $('#qnext').addEventListener('click',()=>{if(qi===Q.length-1)results();else{qi++;ask();}});
+  }
+  function results(){
+    draw=null;
+    const mods=[...new Set(Q.map(q=>q.m))],tot=ans.filter((a,i)=>a===Q[i].a).length;
+    const by=mods.map(m=>{const qs=Q.map((q,i)=>({q,i})).filter(x=>x.q.m===m),ok=qs.filter(x=>ans[x.i]===x.q.a).length;return{m,ok,n:qs.length};});
+    const msg=tot>=10?'Strong result. Pick one setup and paper trade it for twenty trades.':tot>=7?'Solid base. Revisit the modules marked low, then retake.':'Go back through the labs, then retake the quiz.';
+    const miss=Q.map((q,i)=>({q,i})).filter(x=>ans[x.i]!==x.q.a);
+    host.innerHTML=`<div class="qmeta"><span>RESULTS</span><span>${Q.length} questions</span></div><div class="score">${tot} / ${Q.length}</div><p style="margin-top:6px">${msg}</p>
+    <div class="bars">${by.map(b=>`<div class="bar ${b.ok/b.n<.6?'low':''}"><span>${b.m}</span><span class="t"><i style="width:${b.ok/b.n*100}%"></i></span><span>${b.ok}/${b.n}</span></div>`).join('')}</div>
+    ${miss.length?`<div class="lab-title" style="margin-top:20px">Review what you missed</div>`+miss.map(x=>`<div class="qexp" style="margin-top:8px"><b>${x.q.m}:</b> ${x.q.q}<br><b>Answer:</b> ${x.q.o[x.q.a]}. ${x.q.e}</div>`).join(''):'<p style="margin-top:16px">No misses. Nothing to review.</p>'}
+    <div class="controls" style="margin-top:16px"><button class="btn primary" id="retry" type="button">Retake quiz</button></div>`;
+    $('#retry').addEventListener('click',()=>{qi=0;ans=[];ask();});
+    if(window.paDone)window.paDone('m7',true);
+  }
+  ask();
+})();
+
+/* ---------- navigation and progress ---------- */
+(function(){
+  const secs=$$('.module'),pills=$('#pills'),prog=$('#prog');let done={};
+  try{done=JSON.parse(localStorage.getItem('pa2-done')||'{}')||{};}catch(e){done={};}
+  pills.innerHTML=secs.map((s,i)=>`<button type="button" class="pill" data-id="${s.id}"><i></i>${i+1}. ${s.dataset.title}</button>`).join('');
+  function paint(){
+    secs.forEach(s=>{
+      $('.pill[data-id="'+s.id+'"]').classList.toggle('done',!!done[s.id]);
+      const b=$('.done-btn[data-done="'+s.id+'"]');if(b){b.setAttribute('aria-pressed',!!done[s.id]);b.textContent=done[s.id]?'Module done':'Mark module done';}
+    });
+    prog.textContent=Object.values(done).filter(Boolean).length+' of '+secs.length+' done';
+  }
+  window.paDone=(id,v)=>{done[id]=v;try{localStorage.setItem('pa2-done',JSON.stringify(done));}catch(e){}paint();};
+  $$('.done-btn').forEach(b=>b.addEventListener('click',()=>window.paDone(b.dataset.done,!done[b.dataset.done])));
+  const calm=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  pills.addEventListener('click',e=>{
+    const b=e.target.closest('.pill');if(!b)return;
+    document.getElementById(b.dataset.id).scrollIntoView({behavior:calm?'auto':'smooth',block:'start'});
+  });
+  if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){
+      $$('.pill',pills).forEach(p=>p.setAttribute('aria-current',p.dataset.id===en.target.id));
+      const a=$('.pill[aria-current="true"]',pills);if(a&&pills.scrollWidth>pills.clientWidth)pills.scrollTo({left:a.offsetLeft-16,behavior:'auto'});
+    }});},{rootMargin:'-25% 0px -65% 0px'});
+    secs.forEach(s=>io.observe(s));
+  }
+  paint();
+})();
+
+</script>
+
+</body>
+</html>

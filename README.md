@@ -6,6 +6,7 @@ Static pages for learning and practicing options day trading. No build step; eve
 |---|---|---|
 | Home | `/` | Landing page |
 | Learning | `/learning/` | Price Action Playbook: interactive chart lessons, position size calculator, quiz |
+| Learning II | `/learning/part-2/` | Part 2: VWAP and volume, timeframes, trade management, option Greeks, day types, expectancy, quiz |
 | Checklist | `/checklist/` | ORB Daily Game Plan: tick-off trading day routine; dollar limits are entered by the user and kept in the browser |
 | Ledger | `/ledger/` | Options P&L ledger: import a Robinhood activity CSV for daily and monthly P&L, rules check, risk stats |
 
