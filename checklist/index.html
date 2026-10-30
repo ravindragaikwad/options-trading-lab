@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ORB Daily Game Plan</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+:root{--bg:#F2F5F8;--surface:#fff;--ink:#16202B;--ink-2:#566474;--line:#D3DBE3;--teal:#1F4E5F;--teal-ink:#fff;--warn:#9A3412;--accent:#A85F00;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0D141B;--surface:#141D26;--ink:#E5EBF1;--ink-2:#9BADBD;--line:#2A3846;--teal:#2F7A93;--teal-ink:#fff;--warn:#F08A5D;--accent:#F0A43A;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 56px max(16px,env(safe-area-inset-left,0px))}
+h1,h2{font-family:"Barlow Condensed","Arial Narrow",sans-serif;text-transform:uppercase;margin:0}
+h1{font-size:clamp(34px,7vw,52px);line-height:1;letter-spacing:.01em}
+.sub{color:var(--ink-2);margin:6px 0 0}
+.bar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin-top:14px}
+.btn{font:600 14px "Source Sans 3",system-ui,sans-serif;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 14px;cursor:pointer;min-height:38px}
+.btn:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.count{font-size:14px;color:var(--ink-2)}
+details.mine{margin-top:16px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+details.mine summary{cursor:pointer;font-weight:600}
+details.mine p{margin:8px 0 12px;color:var(--ink-2);font-size:14px;max-width:62ch}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 14px}
+.nums label{display:grid;gap:3px;font-size:13px;color:var(--ink-2)}
+.nums input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:28px;margin-top:22px}
+@media (max-width:780px){.cols{grid-template-columns:minmax(0,1fr)}}
+.col{display:grid;gap:18px;align-content:start}
+.blk h2{font-size:21px;letter-spacing:.04em;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.time{font-size:17px;color:var(--teal-ink);background:var(--teal);padding:1px 8px;border-radius:3px;white-space:nowrap}
+.blk h2.warn{color:var(--warn)}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+li{display:flex;gap:9px;align-items:flex-start;font-size:15px}
+li.dot::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:var(--teal);margin-top:9px}
+li.dot.w::before{background:var(--warn)}
+li label{display:flex;gap:9px;align-items:flex-start;cursor:pointer}
+li input[type=checkbox]{flex:none;width:17px;height:17px;margin:3px 0 0;accent-color:var(--teal)}
+li input:checked+span{color:var(--ink-2);text-decoration:line-through}
+.box{border:1.5px solid var(--ink);border-radius:8px;padding:12px 14px;background:var(--surface)}
+.box.w{border-color:var(--warn)}
+.aside{font:400 13px "Source Sans 3",sans-serif;text-transform:none;letter-spacing:0;color:var(--ink-2)}
+.amt{font-weight:700;white-space:nowrap}
+.amt.unset{color:var(--ink-2);font-weight:600;text-decoration:underline dotted}
+.foot{margin-top:26px;padding-top:10px;border-top:1.5px solid var(--ink);display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 16px;font-size:13px;color:var(--ink-2)}
+@media print{.otl-nav,.bar,details.mine{display:none}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<style>
+.otl-nav{background:#0f1b26;color:#e8eef4;font:500 14px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;border-bottom:1px solid #1c2c3b}
+.otl-in{max-width:1140px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:2px 20px;padding:8px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px))}
+.otl-nav a{color:inherit;text-decoration:none;padding:8px 0;border-bottom:2px solid transparent}
+.otl-nav a:hover{border-bottom-color:#7f94a8}
+.otl-nav a[aria-current="page"]{border-bottom-color:#f0a43a}
+.otl-nav a:focus-visible{outline:2px solid #f0a43a;outline-offset:2px}
+.otl-brand{font-weight:700;margin-right:auto}
+</style><nav class="otl-nav" aria-label="Site"><div class="otl-in"><a class="otl-brand" href="../">Options Trading Lab</a><a href="../learning/">Learning</a><a href="../checklist/" aria-current="page">Checklist</a><a href="../ledger/">Ledger</a></div></nav>
+
+<main class="wrap">
+<header>
+  <h1>ORB Daily Game Plan</h1>
+  <p class="sub">5-min chart · extended hours ON · ORB Retest indicator · 0DTE SPY / QQQ / IWM + Mag 7</p>
+  <div class="bar">
+    <button type="button" class="btn" id="reset">Start a new day</button>
+    <span class="count" id="count" role="status"></span>
+  </div>
+  <details class="mine" id="mine">
+    <summary>My numbers (stay in this browser)</summary>
+    <p>Fill in your own dollar limits. They show up in the rules below, are saved only on this device, and are never part of the site's code.</p>
+    <div class="nums">
+      <label for="n-dayLoss">Daily stop, loss ($)<input id="n-dayLoss" type="number" inputmode="decimal" min="0" step="1"></label>
+      <label for="n-hardMax">Hard max loss per day ($)<input id="n-hardMax" type="number" inputmode="decimal" min="0" step="1"></label>
+      <label for="n-weekStop">Weekly stop, loss ($)<input id="n-weekStop" type="number" inputmode="decimal" min="0" step="1"></label>
+      <label for="n-riskLow">Risk per trade, low ($)<input id="n-riskLow" type="number" inputmode="decimal" min="0" step="1"></label>
+      <label for="n-riskHigh">Risk per trade, high ($)<input id="n-riskHigh" type="number" inputmode="decimal" min="0" step="1"></label>
+      <label for="n-maxTrade">Max in one trade ($)<input id="n-maxTrade" type="number" inputmode="decimal" min="0" step="1"></label>
+      <label for="n-lotto">Weekly lotto size ($)<input id="n-lotto" type="number" inputmode="decimal" min="0" step="1"></label>
+    </div>
+  </details>
+</header>
+
+<div class="cols">
+  <div class="col">
+    <section class="blk">
+      <h2><span class="time">9:00</span>Prep</h2>
+      <ul>
+        <li><label><input type="checkbox" data-c><span>Earnings, CPI, FOMC or jobs report today? <b>Skip that ticker</b> or half size.</span></label></li>
+        <li><label><input type="checkbox" data-c><span>Open 5-min charts: SPY, QQQ, IWM + Mag 7 with a <b>0DTE today</b> (Mon/Wed/Fri). Tue/Thu: next-day expiry or skip.</span></label></li>
+        <li><label><input type="checkbox" data-c><span>Note levels: red R (1H) above, green S below, PDH/PDL, PM high/low.</span></label></li>
+        <li><label><input type="checkbox" data-c><span>One alert per chart: “Any alert() function call”.</span></label></li>
+        <li><label><input type="checkbox" data-c><span>Write today's stop: <b>2 losses or −<span class="amt" data-k="dayLoss"></span></b>.</span></label></li>
+      </ul>
+    </section>
+    <section class="blk">
+      <h2><span class="time">9:30</span>Hands off</h2>
+      <ul><li class="dot"><span>Opening range is forming. <b>No trades until 9:45.</b></span></li></ul>
+    </section>
+    <section class="blk">
+      <h2><span class="time">9:45</span>Read the status box</h2>
+      <ul>
+        <li class="dot"><span>“Low volume, signals OFF” → <b>skip this ticker today.</b></span></li>
+        <li class="dot"><span>“SPY above VWAP” → calls only. “Below” → puts only.</span></li>
+        <li class="dot"><span>Trade <b>one direction</b> per day unless SPY flips.</span></li>
+      </ul>
+    </section>
+    <section class="blk">
+      <h2><span class="time">9:45–11:30</span>Morning signals</h2>
+      <ul>
+        <li class="dot"><span>BUY CALLS / BUY PUTS prints only after the candle closes: <b>enter within 30–60 sec</b>, limit order at mid.</span></li>
+        <li class="dot"><span>Price already ran over half-way to TP? <b>Skip it.</b></span></li>
+        <li class="dot"><span>Never enter before the label appears.</span></li>
+      </ul>
+    </section>
+    <section class="blk">
+      <h2><span class="time">11:30–3:30</span>Afternoon</h2>
+      <ul><li class="dot"><span>CONT CALLS / CONT PUTS only. Smaller size or next-day expiry: 0DTE decays fast after 1 PM.</span></li></ul>
+    </section>
+    <section class="blk">
+      <h2 class="warn"><span class="time">3:30</span>Hard exit</h2>
+      <ul><li class="dot w"><span>Close every 0DTE position. <b>Never hold into the close.</b></span></li></ul>
+    </section>
+    <section class="blk">
+      <h2><span class="time">4:00</span>Log</h2>
+      <ul><li><label><input type="checkbox" data-c><span>Log every trade: ticker, signal, volume reading, entry, exit, R, $, and the exit reason.</span></label></li></ul>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="box">
+      <h2>Before every entry: all yes</h2>
+      <ul style="margin-top:8px">
+        <li><label><input type="checkbox" data-c><span>Label printed on a <b>closed</b> 5-min candle</span></label></li>
+        <li><label><input type="checkbox" data-c><span>Status box: volume ON and SPY agrees</span></label></li>
+        <li><label><input type="checkbox" data-c><span>No news in the next 15 min, no earnings</span></label></li>
+        <li><label><input type="checkbox" data-c><span>Room to the first 1H level is ~1R or more</span></label></li>
+        <li><label><input type="checkbox" data-c><span>Under 2 trades and 2 losses today, nothing else open</span></label></li>
+      </ul>
+    </section>
+    <section class="blk">
+      <h2>Contract</h2>
+      <ul><li class="dot"><span>At the money or 1 strike in, <b>delta 0.45–0.60</b>. Tight bid/ask. Limit orders only, never market.</span></li></ul>
+    </section>
+    <section class="blk">
+      <h2>Size</h2>
+      <ul>
+        <li class="dot"><span>Risk <b><span class="amt" data-k="riskLow"></span>–<span class="amt" data-k="riskHigh"></span> per trade = total premium paid</b>.</span></li>
+        <li class="dot"><span>Never more than ~<span class="amt" data-k="maxTrade"></span> (about 25% of your options cash) in one trade.</span></li>
+        <li class="dot"><span>First trade of the day smallest. <b>Never add to a loser.</b></span></li>
+      </ul>
+    </section>
+    <section class="blk">
+      <h2>Exits <span class="aside">judge by the stock, not the option</span></h2>
+      <ul>
+        <li class="dot"><span>Candle closes past the <b>SL line</b> → out.</span></li>
+        <li class="dot"><span>Option down <b>30–35%</b> → out. No exceptions.</span></li>
+        <li class="dot"><span>Green <b>TP1</b> (next 1H level) → sell half, move stop to entry.</span></li>
+        <li class="dot"><span><b>TP line (2R)</b> → sell the rest.</span></li>
+        <li class="dot"><span>Not at +1R within 30–45 min → out.</span></li>
+      </ul>
+    </section>
+    <section class="box w">
+      <h2 class="warn" style="color:var(--warn)">Daily limits</h2>
+      <ul style="margin-top:8px">
+        <li class="dot w"><span><b>Max 2 trades.</b> Stop after 2 losses or −<span class="amt" data-k="dayLoss"></span> (hard max −<span class="amt" data-k="hardMax"></span>).</span></li>
+        <li class="dot w"><span>Down <span class="amt" data-k="weekStop"></span> on the week → stop, review the log.</span></li>
+        <li class="dot w"><span>No revenge re-entry on the same strike after a loss.</span></li>
+        <li class="dot w"><span>No single stocks held overnight.</span></li>
+        <li class="dot w"><span>Lotto (far out of the money): max 1 a week, <span class="amt" data-k="lotto"></span>.</span></li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<div class="foot">
+  <span>Settings: ORB 9:30–9:45 · signals 9:45–11:30 · tolerance 0.25 · opening volume 1.0× · SPY filter ON · TP1 at 1H level</span>
+  <span>Paper trade first · Not financial advice</span>
+</div>
+</main>
+<script>
+(function(){
+  var KEY='otl-orb',today=new Date().toLocaleDateString('en-CA'),st={date:today,checks:{},nums:{}};
+  try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s&&typeof s==='object'){st.nums=s.nums||{};if(s.date===today)st.checks=s.checks||{};}}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(st));}catch(e){}}
+  var boxes=Array.prototype.slice.call(document.querySelectorAll('[data-c]'));
+  function fmt(v){var n=parseFloat(v);return isFinite(n)?'$'+n.toLocaleString('en-US',{maximumFractionDigits:2}):null;}
+  function paintNums(){
+    document.querySelectorAll('.amt').forEach(function(el){
+      var t=fmt(st.nums[el.dataset.k]);el.textContent=t||'your limit';el.classList.toggle('unset',!t);
+    });
+  }
+  function paintCount(){
+    var n=boxes.filter(function(b){return b.checked;}).length;
+    document.getElementById('count').textContent=n+' of '+boxes.length+' checked today';
+  }
+  boxes.forEach(function(b,i){
+    b.checked=!!st.checks[i];
+    b.addEventListener('change',function(){st.checks[i]=b.checked;save();paintCount();});
+  });
+  Object.keys({dayLoss:1,hardMax:1,weekStop:1,riskLow:1,riskHigh:1,maxTrade:1,lotto:1}).forEach(function(k){
+    var el=document.getElementById('n-'+k);if(!el)return;
+    if(st.nums[k]!=null)el.value=st.nums[k];
+    el.addEventListener('input',function(){st.nums[k]=el.value;save();paintNums();});
+  });
+  document.getElementById('reset').addEventListener('click',function(){
+    st.checks={};boxes.forEach(function(b){b.checked=false;});save();paintCount();
+  });
+  paintNums();paintCount();
+})();
+</script>
+</body>
+</html>
